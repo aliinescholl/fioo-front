@@ -1,5 +1,6 @@
 import "./globals.css"
 import { Abhaya_Libre, Newsreader } from "next/font/google"
+import { AuthProvider } from "@/context/AuthContext"
 
 const abhaya = Abhaya_Libre({
   subsets: ["latin"],
@@ -21,7 +22,9 @@ export default function RootLayout({
   return (
     <html lang="pt-br">
       <body className={`${abhaya.variable} ${newsreader.variable}`}>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   )

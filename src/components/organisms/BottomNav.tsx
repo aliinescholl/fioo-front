@@ -44,7 +44,7 @@ export function BottomNav() {
 
 
       <Link
-        href="/servicos"
+        href="/servicos/novo"
         className="flex flex-col items-center justify-center"
       >
         <Image
