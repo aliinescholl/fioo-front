@@ -68,8 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string
   ): Promise<{ exists: boolean; error?: string }> {
     try {
-      const API_BASE_URL = process.env.API_BASE_URL
-      const res = await fetch(`${API_BASE_URL}/api/usuarios/verificar-email`, {
+      const res = await fetch("/api/auth/check-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -111,10 +110,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     senha: string
   ): Promise<{ error?: string }> {
     try {
-      const res = await fetch(`/api/usuarios`, {
+      const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, email, senha }),
+        body: JSON.stringify({ nome, email, password: senha }),
       })
       if (!res.ok) {
         const data = await res.json()
