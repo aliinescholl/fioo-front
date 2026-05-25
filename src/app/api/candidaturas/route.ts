@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
-    const response = await fetch(`${API_BASE_URL}/api/servicos`, {
+    const response = await fetch(`${API_BASE_URL}/api/candidaturas`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -32,41 +32,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (!response.ok) {
-      const error = await extractError(response, "Erro ao cadastrar serviço")
-      return NextResponse.json({ error }, { status: response.status })
-    }
-
-    const data = await response.json()
-    return NextResponse.json(data)
-  } catch {
-    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
-  }
-}
-
-export async function GET(request: NextRequest) {
-  try {
-    const token = request.cookies.get(COOKIE_NAME)?.value
-    if (!token) {
-      return NextResponse.json({ error: "Não autenticado" }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(request.url)
-    const usuarioId = searchParams.get("usuarioId")
-
-    const url = new URL(`${API_BASE_URL}/api/servicos`)
-    if (usuarioId) {
-      url.searchParams.set("usuarioId", usuarioId)
-    }
-
-    const response = await fetch(url.toString(), {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-
-    if (!response.ok) {
-      const error = await extractError(response, "Erro ao obter serviços")
+      const error = await extractError(response, "Erro ao criar candidatura")
       return NextResponse.json({ error }, { status: response.status })
     }
 

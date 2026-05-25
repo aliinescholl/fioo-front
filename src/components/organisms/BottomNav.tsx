@@ -2,8 +2,11 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { useAuth } from "@/context/AuthContext"
 
 export function BottomNav() {
+  const { user } = useAuth()
+  const isCostureiro = user?.role === "Costureiro"
   return (
     <nav
       className="
@@ -44,7 +47,7 @@ export function BottomNav() {
 
 
       <Link
-        href="/servicos/novo"
+        href={isCostureiro ? "/servicos" : "/servicos/novo"}
         className="flex flex-col items-center justify-center"
       >
         <Image

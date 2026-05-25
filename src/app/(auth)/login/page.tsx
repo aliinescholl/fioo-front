@@ -7,7 +7,7 @@ import { Button } from "@/components/atoms/Button"
 import { Logo } from "@/components/atoms/Logo"
 import { useAuth } from "@/context/AuthContext"
 
-type Step = "email" | "password"
+type Step = "email" | "senha"
 
 export default function LoginPage() {
   const [step, setStep] = useState<Step>("email")
@@ -39,7 +39,7 @@ export default function LoginPage() {
         //   return
         // }
 
-        setStep("password")
+        setStep("senha")
 
         // router.push(`/cadastro?email=${encodeURIComponent(email.trim())}`)
 
@@ -47,7 +47,7 @@ export default function LoginPage() {
       return
     }
 
-    // Step: password
+    // Step: senha
     if (!password) {
       setError("Informe sua senha")
       return
@@ -73,12 +73,12 @@ export default function LoginPage() {
             type="email"
             value={email}
             onChange={(e) => { setEmail(e.target.value); clearError() }}
-            disabled={step === "password" || isPending}
+            disabled={step === "senha" || isPending}
             onKeyDown={(e) => e.key === "Enter" && !isPending && handleContinuar()}
             autoComplete="email"
           />
           {/* Botão de trocar email quando no step de senha */}
-          {step === "password" && (
+          {step === "senha" && (
             <button
               onClick={() => { setStep("email"); setPassword(""); setError("") }}
               className="text-xs text-left text-[var(--color-primary-dark)] hover:underline"
@@ -88,7 +88,7 @@ export default function LoginPage() {
           )}
         </div>
 
-        {step === "password" && (
+        {step === "senha" && (
           <>
             <InputLabel
               label="Senha"

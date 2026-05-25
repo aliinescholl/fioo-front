@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation"
 export type UserRole = "Costureiro" | "Fornecedor" | (string & {})
 
 export type User = {
+  id: string
   nome: string
   email: string
   nomeUsuario: string
@@ -24,11 +25,11 @@ type AuthContextType = {
   isAuthenticated: boolean
   isLoading: boolean
   checkEmail: (email: string) => Promise<{ exists: boolean; error?: string }>
-  login: (email: string, password: string) => Promise<{ error?: string }>
+  login: (email: string, senha: string) => Promise<{ error?: string }>
   register: (
     nome: string,
     email: string,
-    password: string
+    senha: string
   ) => Promise<{ error?: string }>
   logout: () => Promise<void>
   hasRole: (role: UserRole) => boolean
@@ -83,13 +84,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /** Realiza login e armazena token via cookie HttpOnly (server-side) */
   async function login(
     email: string,
-    password: string
+    senha: string
   ): Promise<{ error?: string }> {
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, senha }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -107,13 +108,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function register(
     nome: string,
     email: string,
-    password: string
+    senha: string
   ): Promise<{ error?: string }> {
     try {
-      const res = await fetch("/api/auth/register", {
+      const res = await fetch(`/api/usuarios`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, email, password }),
+        body: JSON.stringify({ nome, email, senha }),
       })
       if (!res.ok) {
         const data = await res.json()

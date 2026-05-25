@@ -15,16 +15,16 @@ async function extractError(res: Response, fallback: string): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json()
+    const { email, senha } = await request.json()
 
-    if (!email || !password) {
+    if (!email || !senha) {
       return NextResponse.json({ error: "Email e senha são obrigatórios" }, { status: 400 })
     }
 
     const response = await fetch(`${API_BASE_URL}/api/usuarios/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, senha: password }),
+      body: JSON.stringify({ email, senha: senha }),
     })
 
     if (!response.ok) {
