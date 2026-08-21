@@ -29,7 +29,9 @@ type AuthContextType = {
   register: (
     nome: string,
     email: string,
-    senha: string
+    senha: string,
+    ehCostureiro?: boolean,
+    cnpj?: string
   ) => Promise<{ error?: string }>
   logout: () => Promise<void>
   hasRole: (role: UserRole) => boolean
@@ -107,13 +109,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function register(
     nome: string,
     email: string,
-    senha: string
+    senha: string,
+    ehCostureiro: boolean = true,
+    cnpj?: string
   ): Promise<{ error?: string }> {
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, email, password: senha }),
+        body: JSON.stringify({ nome, email, senha: senha, ehCostureiro, cnpj }),
       })
       if (!res.ok) {
         const data = await res.json()

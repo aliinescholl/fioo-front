@@ -13,14 +13,19 @@ async function extractError(res: Response, fallback: string): Promise<string> {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const token = request.cookies.get(COOKIE_NAME)?.value
     if (!token) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 })
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/usuarios/me`, {
+    const { id } = await params
+
+    const response = await fetch(`${API_BASE_URL}/api/servicos/${id}`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -28,7 +33,7 @@ export async function GET(request: NextRequest) {
     })
 
     if (!response.ok) {
-      const error = await extractError(response, "Erro ao obter perfil")
+      const error = await extractError(response, "Erro ao obter serviço")
       return NextResponse.json({ error }, { status: response.status })
     }
 
@@ -39,34 +44,34 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function PUT(request: NextRequest) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const token = request.cookies.get(COOKIE_NAME)?.value
     if (!token) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 })
     }
 
-    // Repassa o FormData diretamente ao backend adicionando o token de auth
-    const formData = await request.formData()
+    const { id } = await params
+    const body = await request.json()
 
-    const response = await fetch(`${API_BASE_URL}/api/usuarios/me`, {
+    const response = await fetch(`${API_BASE_URL}/api/servicos/${id}`, {
       method: "PUT",
       headers: {
+        "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
-        // Não definir Content-Type: o fetch define automaticamente com o boundary correto
       },
-      body: formData,
+      body: JSON.stringify(body),
     })
 
     if (!response.ok) {
-      const data = await response.json().catch(() => ({}))
-      return NextResponse.json(
-        { error: data.message ?? "Erro ao salvar perfil" },
-        { status: response.status }
-      )
+      const error = await extractError(response, "Erro ao atualizar serviço")
+      return NextResponse.json({ error }, { status: response.status })
     }
 
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ success: true })
   } catch {
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }

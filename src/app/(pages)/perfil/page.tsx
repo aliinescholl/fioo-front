@@ -4,15 +4,34 @@ import { useState, useRef, useEffect } from "react"
 import { useAuth } from "@/context/AuthContext"
 import { validateCPF, validateCNPJ, formatCpfCnpj } from "@/lib/validation"
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Lê campo suportando camelCase e PascalCase do backend */
+function get<T = any>(obj: any, camel: string): T | undefined {
+  if (obj == null) return undefined
+  if (camel in obj) return obj[camel]
+  const pascal = camel.charAt(0).toUpperCase() + camel.slice(1)
+  return obj[pascal]
+}
+
+/** Mapeia o tipo do usuário (número ou string) para "costureiro" | "fornecedor" | "" */
+function mapTipo(tipo: any): "costureiro" | "fornecedor" | "" {
+  if (tipo === 0 || tipo === "0" || tipo === "Costureiro" || tipo === "costureiro") return "costureiro"
+  if (tipo === 1 || tipo === "1" || tipo === "Fornecedor" || tipo === "fornecedor") return "fornecedor"
+  return ""
+}
+
 // ─── Sub-componentes ──────────────────────────────────────────────────────────
 
-function Toast({ visible }: { visible: boolean }) {
+function Toast({ visible, error }: { visible: boolean; error?: string }) {
+  const isError = !!error
   return (
-    <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 bg-white border border-green-200 text-green-700 px-4 py-3 rounded-xl shadow-lg transition-all duration-300 ${visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-3 pointer-events-none"}`}>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="20 6 9 17 4 12" />
-      </svg>
-      <span className="text-sm font-semibold">Alterações salvas</span>
+    <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg border transition-all duration-300 bg-white ${visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-3 pointer-events-none"} ${isError ? "border-red-200 text-red-600" : "border-green-200 text-green-700"}`}>
+      {isError
+        ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+        : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+      }
+      <span className="text-sm font-semibold">{isError ? error : "Alterações salvas"}</span>
     </div>
   )
 }
@@ -44,9 +63,9 @@ const inp = "w-full h-[44px] px-4 rounded-[10px] border border-gray-200 outline-
 
 export default function PerfilPage() {
   const { user, logout } = useAuth()
-  const [showToast, setShowToast] = useState(false)
-  const [saveError, setSaveError] = useState("")
+  const [toast, setToast] = useState<{ visible: boolean; error?: string }>({ visible: false })
   const [saving, setSaving] = useState(false)
+  const [loadingPerfil, setLoadingPerfil] = useState(true)
 
   // Foto de perfil
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
@@ -76,9 +95,90 @@ export default function PerfilPage() {
     maquinario: "",
   })
 
+  // ─── Carrega perfil completo do backend ─────────────────────────────────────
   useEffect(() => {
-    if (user) setForm(p => ({ ...p, nomeCompleto: user.nome, email: user.email }))
-  }, [user])
+    const fetchPerfil = async () => {
+      setLoadingPerfil(true)
+      try {
+        const res = await fetch("/api/perfil")
+        if (!res.ok) {
+          // Fallback: usa só o que o JWT tem (user do AuthContext)
+          if (user) {
+            setForm(p => ({
+              ...p,
+              nomeCompleto: user.nome ?? "",
+              nomeUsuario: user.nomeUsuario ?? "",
+              email: user.email ?? "",
+              servico: mapTipo(user.role),
+            }))
+          }
+          return
+        }
+
+        const u = await res.json()
+
+        // Determina o tipo: pode vir do campo "tipo" (int) ou "role" / "UsuarioTipo"
+        const tipoRaw = get(u, "tipo") ?? get(u, "role") ?? user?.role
+        const servico = mapTipo(tipoRaw)
+
+        // Anos de experiência → string legível
+        const anos = get<number>(u, "anosExperiencia")
+        const tempoServico = anos != null && anos > 0 ? `${anos}` : ""
+
+        // Endereço (pode vir flat ou dentro de um objeto "endereco")
+        const end = get(u, "endereco")
+        const cidade = get(end, "cidade") ?? get(u, "cidade") ?? ""
+        const estado = get(end, "estado") ?? get(u, "estado") ?? ""
+        const cep = get(end, "cep") ?? get(u, "cep") ?? ""
+        const rua = get(end, "rua") ?? get(u, "rua") ?? ""
+        const numero = get(end, "numero") ?? get(u, "numero") ?? ""
+        const bairro = get(end, "bairro") ?? get(u, "bairro") ?? ""
+        const complemento = get(end, "complemento") ?? get(u, "complemento") ?? ""
+
+        // CpfCnpj formatado
+        const cpfCnpjRaw = get<string>(u, "cpfCnpj") ?? ""
+        const cpfCnpjFmt = cpfCnpjRaw ? formatCpfCnpj(cpfCnpjRaw) : ""
+
+        setForm({
+          servico,
+          nomeCompleto: get(u, "nome") ?? user?.nome ?? "",
+          nomeSocial: get(u, "nomeFantasia") ?? get(u, "nomeSocial") ?? "",
+          pronome: get(u, "pronome") ?? "",
+          nomeUsuario: get(u, "nomeUsuario") ?? user?.nomeUsuario ?? "",
+          email: get(u, "email") ?? user?.email ?? "",
+          cpfCnpj: cpfCnpjFmt,
+          telefone: get(u, "telefone") ?? "",
+          mostrarTelefone: get<boolean>(u, "telefoneVisivel") ?? false,
+          tempoServico,
+          maquinario: "",   // lista de maquinários vem como array — não há campo de texto
+          cep, rua, numero, bairro, complemento, cidade, estado,
+        })
+
+        // Foto de perfil existente
+        const fotoUrl = get<string>(u, "fotoPerfilUrl")
+        if (fotoUrl) setFotoPreview(fotoUrl)
+
+      } catch {
+        // Fallback silencioso
+        if (user) {
+          setForm(p => ({
+            ...p,
+            nomeCompleto: user.nome ?? "",
+            nomeUsuario: user.nomeUsuario ?? "",
+            email: user.email ?? "",
+            servico: mapTipo(user.role),
+          }))
+        }
+      } finally {
+        setLoadingPerfil(false)
+      }
+    }
+
+    fetchPerfil()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])   // roda uma vez — user.role vem do JWT que já está no contexto
+
+  // ─── Helpers de form ─────────────────────────────────────────────────────────
 
   function set(name: string, value: string | boolean) {
     setForm(p => ({ ...p, [name]: value }))
@@ -124,15 +224,18 @@ export default function PerfilPage() {
     return true
   }
 
+  function showToast(error?: string) {
+    setToast({ visible: true, error })
+    setTimeout(() => setToast({ visible: false }), 3500)
+  }
+
   async function handleSave() {
     if (!validateDoc()) return
-    setSaveError("")
     setSaving(true)
 
     try {
       const fd = new FormData()
 
-      // Mapeamento dos campos para os nomes esperados pelo backend
       fd.append("Nome", form.nomeCompleto)
       fd.append("NomeSocial", form.nomeSocial)
       fd.append("Pronome", form.pronome)
@@ -142,21 +245,17 @@ export default function PerfilPage() {
       fd.append("Telefone", form.telefone)
       fd.append("TelefoneVisivel", String(form.mostrarTelefone))
 
-      // ServicoPrestado: costureiro=0, fornecedor=1
-      fd.append("ServicoPrestado", form.servico === "costureiro" ? "0" : "1")
+      // Tipo: costureiro=0, fornecedor=1
+      fd.append("Tipo", form.servico === "costureiro" ? "0" : "1")
 
-      // AnosExperiencia: extrai apenas dígitos
       const anos = form.tempoServico.replace(/\D/g, "")
       fd.append("AnosExperiencia", anos || "0")
 
-      // Maquinário: IDs separados por vírgula → múltiplos campos
-      if (form.maquinario.trim()) {
-        form.maquinario.split(",").map(s => s.trim()).filter(Boolean).forEach(id => {
-          fd.append("MaquinarioIds", id)
-        })
-      }
+      // Cidade e Estado direto no usuário (conforme o model)
+      fd.append("Cidade", form.cidade)
+      fd.append("Estado", form.estado)
 
-      // Endereço com dot notation
+      // Endereço com dot notation (caso o backend aceite)
       fd.append("Endereco.Cep", form.cep)
       fd.append("Endereco.Rua", form.rua)
       fd.append("Endereco.Numero", form.numero)
@@ -165,38 +264,43 @@ export default function PerfilPage() {
       fd.append("Endereco.Cidade", form.cidade)
       fd.append("Endereco.Estado", form.estado)
 
-      // Foto de perfil (arquivo)
       if (fotoFile) fd.append("FotoPerfil", fotoFile)
-
-      // Portfólio (múltiplos arquivos)
       portfolioFiles.forEach(file => fd.append("Portfolios", file))
 
       const res = await fetch("/api/perfil", { method: "PUT", body: fd })
 
       if (!res.ok) {
-        const data = await res.json()
-        setSaveError(data.error ?? "Erro ao salvar")
+        const data = await res.json().catch(() => ({}))
+        showToast(data.error ?? "Erro ao salvar")
         return
       }
 
-      setShowToast(true)
-      setTimeout(() => setShowToast(false), 3000)
+      showToast()
+    } catch {
+      showToast("Erro ao salvar perfil")
     } finally {
       setSaving(false)
     }
   }
 
-  if (!user) {
+  // ─── Render: loading ──────────────────────────────────────────────────────────
+
+  if (!user || loadingPerfil) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-8 h-8 border-4 border-[#7EBEB2] border-t-transparent rounded-full animate-spin" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-[#7EBEB2] border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs text-gray-400">Carregando perfil...</span>
+        </div>
       </div>
     )
   }
 
+  // ─── Render: formulário ───────────────────────────────────────────────────────
+
   return (
     <>
-      <Toast visible={showToast} />
+      <Toast visible={toast.visible} error={toast.error} />
 
       <main className="flex flex-col items-center pb-28">
         <div className="w-full max-w-[480px] px-4 flex flex-col gap-5 pt-4">
@@ -208,8 +312,8 @@ export default function PerfilPage() {
               {fotoPreview
                 ? <img src={fotoPreview} alt="Foto" className="w-full h-full object-cover" />
                 : <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#7EBEB2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-                  </svg>}
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                </svg>}
               <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
@@ -225,8 +329,15 @@ export default function PerfilPage() {
           <Field label="Serviço prestado">
             <div className="flex gap-3">
               {(["costureiro", "fornecedor"] as const).map(tipo => (
-                <button key={tipo} type="button" onClick={() => set("servico", tipo)}
-                  className={`flex-1 h-[44px] rounded-[20px] border-2 text-sm font-semibold transition-all ${form.servico === tipo ? "border-[#7EBEB2] bg-[#e8f5f2] text-[#2a594d]" : "border-gray-200 bg-white text-gray-500"}`}>
+                <button
+                  key={tipo}
+                  type="button"
+                  onClick={() => set("servico", tipo)}
+                  className={`flex-1 h-[44px] rounded-[20px] border-2 text-sm font-semibold transition-all ${form.servico === tipo
+                    ? "border-[#7EBEB2] bg-[#e8f5f2] text-[#2a594d]"
+                    : "border-gray-200 bg-white text-gray-500"
+                    }`}
+                >
                   {tipo === "costureiro" ? "Costureiro(a)" : "Fornecedor(a)"}
                 </button>
               ))}
@@ -266,9 +377,11 @@ export default function PerfilPage() {
           {/* ── CPF / CNPJ ── */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-semibold text-gray-700">CPF / CNPJ</label>
-            <input className={`${inp} ${cpfCnpjError ? "border-red-400 bg-red-50 focus:border-red-400" : ""}`}
+            <input
+              className={`${inp} ${cpfCnpjError ? "border-red-400 bg-red-50 focus:border-red-400" : ""}`}
               value={form.cpfCnpj} onChange={handleCpfCnpj} onBlur={validateDoc}
-              placeholder="000.000.000-00 ou 00.000.000/0000-00" maxLength={18} />
+              placeholder="000.000.000-00 ou 00.000.000/0000-00" maxLength={18}
+            />
             {cpfCnpjError && <p className="text-xs text-red-500">{cpfCnpjError}</p>}
           </div>
 
@@ -279,14 +392,10 @@ export default function PerfilPage() {
 
           {/* ── Endereço ── */}
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">Endereço</label>
+            <label className="text-sm font-semibold text-gray-700">Localização</label>
+
             <div className="flex gap-2">
               <input className={`${inp} w-[110px]`} value={form.cep} onChange={e => set("cep", e.target.value)} placeholder="CEP" maxLength={9} />
-              <input className={`${inp} flex-1`} value={form.cidade} onChange={e => set("cidade", e.target.value)} placeholder="Cidade" />
-              <input className={`${inp} w-[58px]`} value={form.estado} onChange={e => set("estado", e.target.value)} placeholder="UF" maxLength={2} />
-            </div>
-            <div className="flex gap-2">
-              <input className={`${inp} flex-1`} value={form.rua} onChange={e => set("rua", e.target.value)} placeholder="Rua / Avenida" />
               <input className={`${inp} w-[68px]`} value={form.numero} onChange={e => set("numero", e.target.value)} placeholder="N°" />
             </div>
             <input className={inp} value={form.bairro} onChange={e => set("bairro", e.target.value)} placeholder="Bairro" />
@@ -294,16 +403,14 @@ export default function PerfilPage() {
           </div>
 
           {/* ── Tempo de serviço ── */}
-          <Field label="Tempo de serviço na área">
-            <input className={inp} value={form.tempoServico} onChange={e => set("tempoServico", e.target.value)} placeholder="Ex: 5 anos" />
-          </Field>
-
-          {/* ── Maquinário ── */}
-          <Field label="Maquinário" optional>
-            <textarea rows={3}
-              className="w-full px-4 py-3 rounded-[10px] border border-gray-200 outline-none focus:border-[#7EBEB2] text-sm resize-none transition-colors bg-white"
-              value={form.maquinario} onChange={e => set("maquinario", e.target.value)}
-              placeholder="IDs dos equipamentos separados por vírgula (ex: 1, 2, 3)" />
+          <Field label="Anos de experiência na área">
+            <input
+              className={inp}
+              value={form.tempoServico}
+              onChange={e => set("tempoServico", e.target.value)}
+              placeholder="Ex: 5"
+              inputMode="numeric"
+            />
           </Field>
 
           {/* ── Portfólio ── */}
@@ -347,13 +454,6 @@ export default function PerfilPage() {
             </svg>
             Verificar perfil
           </button>
-
-          {/* ── Erro de salvar ── */}
-          {saveError && (
-            <p role="alert" className="text-xs text-red-500 text-center bg-red-50 border border-red-200 rounded-[8px] px-3 py-2">
-              {saveError}
-            </p>
-          )}
 
           {/* ── Salvar ── */}
           <button type="button" onClick={handleSave} disabled={saving}

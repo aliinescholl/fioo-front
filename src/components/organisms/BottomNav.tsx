@@ -47,7 +47,7 @@ export function BottomNav() {
 
 
       <Link
-        href={isCostureiro ? "/servicos" : "/servicos/novo"}
+        href={isCostureiro ? "/servicos" : "/servicos/meus"}
         className="flex flex-col items-center justify-center"
       >
         <Image
