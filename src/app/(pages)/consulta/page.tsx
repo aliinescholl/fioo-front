@@ -1,21 +1,42 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { TabsConsulta } from "@/components/organisms/TabsConsulta"
 import { FilterBar } from "@/components/organisms/FilterBar"
 import { SearchInput } from "@/components/atoms/SearchInput"
 import { UserCard } from "@/components/organisms/UserCard"
 import { FilterTag } from "@/components/molecules/FilterTag"
-import { fornecedores, costureiros } from "@/data/fakeUsers"
+
+type Usuario = {
+  foto: string | null
+  nome: string
+  localizacao: string
+  mediaEstrela: string
+}
 
 export default function ConsultaPage() {
-
   const [tab, setTab] = useState("fornecedores")
+  const [lista, setLista] = useState<Usuario[]>([])
+  const [carregando, setCarregando] = useState(true)
 
-  const lista =
-    tab === "fornecedores"
-      ? fornecedores
-      : costureiros
+  useEffect(() => {
+    setCarregando(true)
+    setLista([])
+
+    const rota = tab === "fornecedores" ? "/api/usuarios/fornecedores" : "/api/usuarios/costureiros"
+
+    fetch(rota)
+      .then((res) => res.json())
+      .then((data: Usuario[]) => {
+        setLista(data)
+      })
+      .catch(() => {
+        setLista([])
+      })
+      .finally(() => {
+        setCarregando(false)
+      })
+  }, [tab])
 
   return (
     <main className="flex flex-col items-center pt-4">
@@ -36,13 +57,21 @@ export default function ConsultaPage() {
 
         <div className="flex flex-col items-center gap-4 pb-20">
 
-          {lista.map((user) => (
+          {carregando && (
+            <span className="text-sm text-gray-400 mt-4">Carregando...</span>
+          )}
+
+          {!carregando && lista.length === 0 && (
+            <span className="text-sm text-gray-400 mt-4">Nenhum resultado encontrado.</span>
+          )}
+
+          {!carregando && lista.map((user, index) => (
             <UserCard
-              key={user.id}
+              key={index}
               nome={user.nome}
               localizacao={user.localizacao}
-              imagem={user.imagem}
-              avaliacao={user.avaliacao}
+              imagem={user.foto ?? "/user.png"}
+              avaliacao={parseFloat(user.mediaEstrela) || 0}
             />
           ))}
 
