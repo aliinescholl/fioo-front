@@ -208,14 +208,9 @@ export default function ServicosFeedPage() {
     }
   }
 
-  const filteredServicos = servicos.filter(s => {
-    const term = search.toLowerCase()
-    return (
-      s.titulo.toLowerCase().includes(term) ||
-      (s.categoriaServico && s.categoriaServico.toLowerCase().includes(term)) ||
-      (s.usuario.nome && s.usuario.nome.toLowerCase().includes(term))
-    );
-  })
+  const filteredServicos = servicos.filter(s =>
+    s.titulo.toLowerCase().includes(search.toLowerCase())
+  )
 
   if (!user) {
     return (
@@ -241,7 +236,7 @@ export default function ServicosFeedPage() {
           {/* Filtro/Barra de Pesquisa */}
           <div className="flex items-center border-[1.5px] border-[#7EBEB2] rounded-[10px] h-[40px] w-full overflow-hidden bg-white">
             <input
-              placeholder="Pesquisar por título, categoria ou fornecedor..."
+              placeholder="Pesquisar por nome do serviço..."
               className="flex-1 h-full px-3 outline-none text-sm text-gray-700"
               value={search}
               onChange={e => setSearch(e.target.value)}

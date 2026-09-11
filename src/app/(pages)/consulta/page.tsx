@@ -18,10 +18,12 @@ export default function ConsultaPage() {
   const [tab, setTab] = useState("fornecedores")
   const [lista, setLista] = useState<Usuario[]>([])
   const [carregando, setCarregando] = useState(true)
+  const [search, setSearch] = useState("")
 
   useEffect(() => {
     setCarregando(true)
     setLista([])
+    setSearch("") // limpa a busca ao trocar de aba
 
     const rota = tab === "fornecedores" ? "/api/usuarios/fornecedores" : "/api/usuarios/costureiros"
 
@@ -38,6 +40,10 @@ export default function ConsultaPage() {
       })
   }, [tab])
 
+  const listaFiltrada = lista.filter(u =>
+    u.nome.toLowerCase().includes(search.toLowerCase())
+  )
+
   return (
     <main className="flex flex-col items-center pt-4">
 
@@ -48,7 +54,7 @@ export default function ConsultaPage() {
         <TabsConsulta onChange={setTab} />
 
         <div className="flex justify-center mt-2">
-          <SearchInput />
+          <SearchInput value={search} onChange={setSearch} />
         </div>
 
         <div className="flex flex-wrap justify-center gap-2 mt-2">
@@ -61,11 +67,11 @@ export default function ConsultaPage() {
             <span className="text-sm text-gray-400 mt-4">Carregando...</span>
           )}
 
-          {!carregando && lista.length === 0 && (
+          {!carregando && listaFiltrada.length === 0 && (
             <span className="text-sm text-gray-400 mt-4">Nenhum resultado encontrado.</span>
           )}
 
-          {!carregando && lista.map((user, index) => (
+          {!carregando && listaFiltrada.map((user, index) => (
             <UserCard
               key={index}
               nome={user.nome}

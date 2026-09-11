@@ -1,6 +1,11 @@
 import Image from "next/image";
 
-export function SearchInput() {
+interface SearchInputProps {
+  value?: string
+  onChange?: (value: string) => void
+}
+
+export function SearchInput({ value, onChange }: SearchInputProps) {
   return (
     <div
       className="
@@ -17,6 +22,8 @@ export function SearchInput() {
       <input
         placeholder="Pesquisar por nome"
         className="flex-1 h-full px-3 outline-none"
+        value={value ?? ""}
+        onChange={e => onChange?.(e.target.value)}
       />
 
       <div
@@ -33,4 +40,4 @@ export function SearchInput() {
       </div>
     </div>
   )
-}
+}
