@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import Image from "next/image"
+import { CandidatosModal } from "@/components/organisms/CandidatosModal"
 
 interface Maquinario {
   id: number
@@ -24,6 +25,7 @@ interface Servico {
   status: number
   dataCriacao: string
   maquinarios?: Maquinario[]
+  costureiroVinculado?: { id: number; nome: string } | null
 }
 
 const STATUS_CONFIG: Record<number, { label: string; bg: string; text: string; border: string }> = {
@@ -31,6 +33,11 @@ const STATUS_CONFIG: Record<number, { label: string; bg: string; text: string; b
   1: { label: "Em Andamento", bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
   2: { label: "Finalizado", bg: "bg-gray-50", text: "text-gray-500", border: "border-gray-200" },
   3: { label: "Cancelado", bg: "bg-red-50", text: "text-red-600", border: "border-red-200" },
+}
+
+// Até a padronização de status (Fase 2), Ativo (0) e Em Andamento (1) contam como "em andamento"
+function estaEmAndamento(status: number) {
+  return status === 0 || status === 1
 }
 
 function getCobrancaLabel(tipo: number) {
@@ -60,6 +67,7 @@ export default function MeusServicosPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
+  const [candidatosDe, setCandidatosDe] = useState<Servico | null>(null)
 
   const loadServicos = async () => {
     if (!user?.id) return
@@ -73,8 +81,8 @@ export default function MeusServicosPage() {
       }
       const data = await res.json()
       setServicos(data)
-    } catch (err: any) {
-      setError(err.message ?? "Erro desconhecido")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro desconhecido")
     } finally {
       setLoading(false)
     }
@@ -220,6 +228,22 @@ export default function MeusServicosPage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Costureiro vinculado / candidatos */}
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-50">
+                    <span className="text-xs text-gray-600">
+                      {s.costureiroVinculado
+                        ? <>Costureiro: <strong>{s.costureiroVinculado.nome}</strong></>
+                        : "Nenhum costureiro aceito"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); setCandidatosDe(s) }}
+                      className="shrink-0 h-[40px] px-3 rounded-[10px] border-2 border-[#7EBEB2] bg-white text-[#2a594d] text-xs font-bold hover:bg-[#e8f5f2] transition-colors"
+                    >
+                      Ver candidatos
+                    </button>
+                  </div>
                 </div>
               )
             })}
@@ -227,6 +251,16 @@ export default function MeusServicosPage() {
         )}
 
       </div>
+
+      {candidatosDe && (
+        <CandidatosModal
+          servicoId={candidatosDe.id}
+          servicoTitulo={candidatosDe.titulo}
+          podeAceitar={estaEmAndamento(candidatosDe.status)}
+          onClose={() => setCandidatosDe(null)}
+          onAceito={loadServicos}
+        />
+      )}
     </main>
   )
 }

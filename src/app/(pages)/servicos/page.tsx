@@ -33,6 +33,7 @@ interface Servico {
   dataCriacao: string
   usuario: Fornecedor
   maquinarios?: Maquinario[]
+  costureiroVinculado?: Fornecedor | null
 }
 
 interface Candidatura {
@@ -105,8 +106,8 @@ export default function ServicosFeedPage() {
 
       setServicos(dataServicos)
       setCandidaturas(dataCandidaturas)
-    } catch (err: any) {
-      setError(err.message ?? "Erro desconhecido")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro desconhecido")
     } finally {
       setLoading(false)
     }
@@ -130,10 +131,7 @@ export default function ServicosFeedPage() {
         const res = await fetch("/api/candidaturas", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            usuarioId: parseInt(user.id),
-            servicoId
-          })
+          body: JSON.stringify({ servicoId })
         })
 
         if (!res.ok) {
@@ -424,6 +422,10 @@ export default function ServicosFeedPage() {
                   <div className="flex items-center gap-1 text-[10px] text-gray-400">
                     Status: {getCandidaturaStatusBadge(appliedStatusMap.get(selectedServico.id)!)}
                   </div>
+                </div>
+              ) : selectedServico.costureiroVinculado ? (
+                <div className="w-full h-[46px] rounded-[15px] border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-500 font-semibold text-sm">
+                  Este serviço já tem costureiro
                 </div>
               ) : (
                 <button
