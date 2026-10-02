@@ -4,53 +4,11 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import Image from "next/image"
-
-interface Maquinario {
-  id: number
-  nome: string
-}
-
-interface Servico {
-  id: number
-  titulo: string
-  descricao?: string
-  cidade?: string
-  estado?: string
-  categoriaServico?: string
-  valor?: number
-  tipoCobranca: number
-  tipoPrazo?: number
-  dataPrazo?: string
-  status: number
-  dataCriacao: string
-  maquinarios?: Maquinario[]
-}
-
-const STATUS_CONFIG: Record<number, { label: string; bg: string; text: string; border: string }> = {
-  0: { label: "Ativo", bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
-  1: { label: "Em Andamento", bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-  2: { label: "Finalizado", bg: "bg-gray-50", text: "text-gray-500", border: "border-gray-200" },
-  3: { label: "Cancelado", bg: "bg-red-50", text: "text-red-600", border: "border-red-200" },
-}
-
-function getCobrancaLabel(tipo: number) {
-  return tipo === 0 ? "Por Peça" : "Por Operação"
-}
-
-function getPrazoLabel(tipo?: number, data?: string) {
-  if (tipo === undefined) return "A combinar"
-  switch (tipo) {
-    case 0: return "Semanal"
-    case 1: return "Quinzenal"
-    case 2: return "Mensal"
-    case 3: {
-      if (!data) return "Data específica"
-      const parts = data.split("-")
-      return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : data
-    }
-    default: return "A combinar"
-  }
-}
+import { CandidatosModal } from "@/components/organisms/CandidatosModal"
+import { AvaliacaoModal } from "@/components/organisms/AvaliacaoModal"
+import { useAvaliacoesFeitas } from "@/lib/useAvaliacoesFeitas"
+import { PAPEL } from "@/types/avaliacao"
+import { SERVICO_STATUS, STATUS_SERVICO_CONFIG, getCobrancaLabel, getPrazoLabel, type Servico } from "@/types/servico"
 
 export default function MeusServicosPage() {
   const { user } = useAuth()
@@ -60,6 +18,9 @@ export default function MeusServicosPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
+  const [candidatosDe, setCandidatosDe] = useState<Servico | null>(null)
+  const [avaliando, setAvaliando] = useState<Servico | null>(null)
+  const { feitas, recarregar: recarregarFeitas } = useAvaliacoesFeitas()
 
   const loadServicos = async () => {
     if (!user?.id) return
@@ -73,8 +34,8 @@ export default function MeusServicosPage() {
       }
       const data = await res.json()
       setServicos(data)
-    } catch (err: any) {
-      setError(err.message ?? "Erro desconhecido")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro desconhecido")
     } finally {
       setLoading(false)
     }
@@ -168,7 +129,7 @@ export default function MeusServicosPage() {
         ) : (
           <div className="flex flex-col gap-3">
             {filtered.map(s => {
-              const statusCfg = STATUS_CONFIG[s.status] ?? STATUS_CONFIG[0]
+              const statusCfg = STATUS_SERVICO_CONFIG[s.status]
               return (
                 <div
                   key={s.id}
@@ -181,7 +142,7 @@ export default function MeusServicosPage() {
                       {s.categoriaServico || "Geral"}
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}>
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${statusCfg.className}`}>
                         {statusCfg.label}
                       </span>
                       <span className="text-[11px] font-medium text-gray-400 group-hover:text-[#7EBEB2] transition-colors flex items-center gap-1">
@@ -220,6 +181,38 @@ export default function MeusServicosPage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Costureiro vinculado / candidatos */}
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-50">
+                    <span className="text-xs text-gray-600">
+                      {s.costureiroVinculado
+                        ? <>Costureiro: <strong>{s.costureiroVinculado.nome}</strong></>
+                        : "Nenhum costureiro aceito"}
+                    </span>
+                    {s.status === SERVICO_STATUS.Concluido && s.costureiroVinculado ? (
+                      feitas.has(s.id) ? (
+                        <span className="shrink-0 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-full">
+                          Avaliação enviada
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); setAvaliando(s) }}
+                          className="shrink-0 h-[40px] px-3 rounded-[10px] border-2 border-[#2a594d] bg-[#7EBEB2] text-[#2a594d] text-xs font-bold"
+                        >
+                          Avaliar costureiro
+                        </button>
+                      )
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); setCandidatosDe(s) }}
+                        className="shrink-0 h-[40px] px-3 rounded-[10px] border-2 border-[#7EBEB2] bg-white text-[#2a594d] text-xs font-bold hover:bg-[#e8f5f2] transition-colors"
+                      >
+                        Ver candidatos
+                      </button>
+                    )}
+                  </div>
                 </div>
               )
             })}
@@ -227,6 +220,27 @@ export default function MeusServicosPage() {
         )}
 
       </div>
+
+      {candidatosDe && (
+        <CandidatosModal
+          servicoId={candidatosDe.id}
+          servicoTitulo={candidatosDe.titulo}
+          podeAceitar={candidatosDe.status === SERVICO_STATUS.EmAndamento}
+          onClose={() => setCandidatosDe(null)}
+          onAceito={loadServicos}
+        />
+      )}
+
+      {avaliando?.costureiroVinculado && (
+        <AvaliacaoModal
+          servicoId={avaliando.id}
+          servicoTitulo={avaliando.titulo}
+          papelAvaliado={PAPEL.Costureiro}
+          nomeAvaliado={avaliando.costureiroVinculado.nome}
+          onClose={() => setAvaliando(null)}
+          onEnviada={() => { setAvaliando(null); recarregarFeitas() }}
+        />
+      )}
     </main>
   )
 }

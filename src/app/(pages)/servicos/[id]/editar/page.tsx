@@ -2,28 +2,14 @@
 
 import { useState, useEffect, useTransition } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { useAuth } from "@/context/AuthContext"
+import { COBRANCA_OPCOES, PRAZO_OPCOES, PRAZO_TIPO, type CobrancaTipo, type PrazoTipo, type ServicoPayload, type ServicoStatus } from "@/types/servico"
+import { useCategorias } from "@/lib/useCategorias"
+import { StatusServicoAcoes } from "@/components/organisms/StatusServicoAcoes"
+
+const DATA_ESPECIFICA = String(PRAZO_TIPO.DataEspecifica)
 
 // ─── Enums (espelhando o backend C#) ─────────────────────────────────────────
 
-const COBRANCA_TIPO = [
-  { value: 0, label: "Por Peça" },
-  { value: 1, label: "Por Operação" },
-]
-
-const PRAZO_TIPO = [
-  { value: 0, label: "Semanal" },
-  { value: 1, label: "Quinzenal" },
-  { value: 2, label: "Mensal" },
-  { value: 3, label: "Data Específica" },
-]
-
-const STATUS_TIPO = [
-  { value: 0, label: "Ativo" },
-  { value: 1, label: "Em Andamento" },
-  { value: 2, label: "Finalizado" },
-  { value: 3, label: "Cancelado" },
-]
 
 const ESTADOS_BR = [
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS",
@@ -37,21 +23,21 @@ const ESTADOS_BR = [
  * Normaliza um campo que pode vir como camelCase ou PascalCase do backend.
  * Ex: get(s, "tipoCobranca") tenta s.tipoCobranca e s.TipoCobranca.
  */
-function get<T = any>(obj: any, camel: string): T | undefined {
+function get<T = string>(obj: Record<string, unknown> | null | undefined, camel: string): T | undefined {
   if (obj == null) return undefined
-  if (camel in obj) return obj[camel]
+  if (camel in obj) return obj[camel] as T
   const pascal = camel.charAt(0).toUpperCase() + camel.slice(1)
-  return obj[pascal]
+  return obj[pascal] as T
 }
 
 /** Converte um enum nullable para string, tratando 0 como válido. */
-function enumStr(val: any): string {
+function enumStr(val: unknown): string {
   if (val === null || val === undefined) return ""
   return String(val)
 }
 
 /** Converte decimal/number para string de input, sem trailing zeros desnecessários. */
-function valorStr(val: any): string {
+function valorStr(val: unknown): string {
   if (val === null || val === undefined || val === "") return ""
   const n = Number(val)
   return isNaN(n) ? "" : String(n)
@@ -100,7 +86,6 @@ const inp = "w-full h-[44px] px-4 rounded-[10px] border border-gray-200 outline-
 // ─── Página ───────────────────────────────────────────────────────────────────
 
 export default function EditarServicoPage() {
-  const { user } = useAuth()
   const router = useRouter()
   const params = useParams()
   const servicoId = params.id as string
@@ -120,10 +105,12 @@ export default function EditarServicoPage() {
     valor: "",
     tipoPrazo: "" as string,
     dataPrazo: "",
-    status: "0",
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const categorias = useCategorias()
+  const [status, setStatus] = useState<ServicoStatus | null>(null)
+  const [temCostureiro, setTemCostureiro] = useState(false)
 
   // ─── Carrega dados do serviço pelo ID diretamente ─────────────────────────────
   useEffect(() => {
@@ -153,10 +140,11 @@ export default function EditarServicoPage() {
           valor:           valorStr(get(s, "valor")),
           tipoPrazo:       enumStr(get(s, "tipoPrazo")),
           dataPrazo:       get(s, "dataPrazo")       ?? "",
-          status:          enumStr(get(s, "status")) || "0",
         })
-      } catch (err: any) {
-        setFetchError(err.message ?? "Erro ao carregar serviço")
+        setStatus(get<ServicoStatus>(s, "status") ?? null)
+        setTemCostureiro(get(s, "costureiroVinculado") != null)
+      } catch (err) {
+        setFetchError(err instanceof Error ? err.message : "Erro ao carregar serviço")
       } finally {
         setLoadingInitial(false)
       }
@@ -172,12 +160,19 @@ export default function EditarServicoPage() {
     if (errors[name]) setErrors(p => ({ ...p, [name]: "" }))
   }
 
+  // A data só existe para "Data Específica"; ao trocar de tipo, descarta a data digitada
+  function escolherPrazo(tipo: PrazoTipo) {
+    set("tipoPrazo", String(tipo))
+    if (String(tipo) !== DATA_ESPECIFICA) set("dataPrazo", "")
+  }
+
   function validate(): boolean {
     const e: Record<string, string> = {}
     if (!form.titulo.trim()) e.titulo = "Título é obrigatório"
     if (form.tipoCobranca === "") e.tipoCobranca = "Selecione o tipo de cobrança"
     if (form.valor && isNaN(parseFloat(form.valor.replace(",", ".")))) e.valor = "Valor inválido"
-    if (form.tipoPrazo === "3" && !form.dataPrazo) e.dataPrazo = "Informe a data do prazo"
+    if (form.tipoPrazo === "") e.tipoPrazo = "Escolha o prazo de entrega"
+    if (form.tipoPrazo === DATA_ESPECIFICA && !form.dataPrazo) e.dataPrazo = "Informe a data do prazo"
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -196,19 +191,16 @@ export default function EditarServicoPage() {
         ? parseFloat(form.valor.replace(",", "."))
         : null
 
-      const payload: Record<string, unknown> = {
-        id: parseInt(servicoId),
+      const payload: ServicoPayload = {
         titulo: form.titulo.trim(),
         descricao: form.descricao.trim() || null,
         cidade: form.cidade.trim() || null,
         estado: form.estado || null,
-        tipoCobranca: parseInt(form.tipoCobranca),
+        tipoCobranca: Number(form.tipoCobranca) as CobrancaTipo,
         categoriaServico: form.categoriaServico.trim() || null,
         valor: valorNum,
-        tipoPrazo: form.tipoPrazo !== "" ? parseInt(form.tipoPrazo) : null,
-        dataPrazo: form.tipoPrazo === "3" && form.dataPrazo ? form.dataPrazo : null,
-        status: parseInt(form.status),
-        usuarioId: parseInt(user!.id),
+        tipoPrazo: Number(form.tipoPrazo) as PrazoTipo,
+        dataPrazo: form.tipoPrazo === DATA_ESPECIFICA ? form.dataPrazo : null,
       }
 
       const res = await fetch(`/api/servicos/${servicoId}`, {
@@ -302,6 +294,7 @@ export default function EditarServicoPage() {
               id="editar-titulo"
               className={`${inp} ${errors.titulo ? "border-red-400 bg-red-50" : ""}`}
               value={form.titulo}
+              maxLength={200}
               onChange={e => set("titulo", e.target.value)}
               placeholder="Ex: Costura de jeans, Fornecimento de tecido..."
             />
@@ -325,16 +318,22 @@ export default function EditarServicoPage() {
             <input
               id="editar-categoria"
               className={inp}
+              list="categorias-existentes"
+              maxLength={100}
               value={form.categoriaServico}
               onChange={e => set("categoriaServico", e.target.value)}
               placeholder="Ex: Costura, Bordado, Malharia..."
             />
+            <datalist id="categorias-existentes">
+              {categorias.map(c => <option key={c} value={c} />)}
+            </datalist>
+            <p className="text-xs text-gray-400">Escolha uma categoria da lista ou digite uma nova.</p>
           </Field>
 
           {/* ── Tipo de Cobrança ── */}
           <Field label="Tipo de Cobrança" required>
             <div className="flex gap-3">
-              {COBRANCA_TIPO.map(({ value, label }) => (
+              {COBRANCA_OPCOES.map(({ value, label }) => (
                 <button
                   key={value}
                   type="button"
@@ -376,6 +375,7 @@ export default function EditarServicoPage() {
                 id="editar-cidade"
                 className={`${inp} flex-1`}
                 value={form.cidade}
+                maxLength={100}
                 onChange={e => set("cidade", e.target.value)}
                 placeholder="Cidade"
               />
@@ -392,13 +392,13 @@ export default function EditarServicoPage() {
           </div>
 
           {/* ── Tipo de Prazo ── */}
-          <Field label="Prazo de Entrega">
+          <Field label="Prazo de Entrega" required>
             <div className="grid grid-cols-2 gap-2">
-              {PRAZO_TIPO.map(({ value, label }) => (
+              {PRAZO_OPCOES.map(({ value, label }) => (
                 <button
                   key={value}
                   type="button"
-                  onClick={() => set("tipoPrazo", String(value))}
+                  onClick={() => escolherPrazo(value)}
                   className={`h-[40px] rounded-[10px] border-2 text-sm font-medium transition-all ${
                     form.tipoPrazo === String(value)
                       ? "border-[#7EBEB2] bg-[#e8f5f2] text-[#2a594d]"
@@ -409,10 +409,11 @@ export default function EditarServicoPage() {
                 </button>
               ))}
             </div>
+            {errors.tipoPrazo && <p className="text-xs text-red-500">{errors.tipoPrazo}</p>}
           </Field>
 
           {/* ── Data Prazo (condicional) ── */}
-          {form.tipoPrazo === "3" && (
+          {form.tipoPrazo === DATA_ESPECIFICA && (
             <Field label="Data do Prazo" required>
               <input
                 id="editar-dataPrazo"
@@ -426,24 +427,14 @@ export default function EditarServicoPage() {
           )}
 
           {/* ── Status ── */}
-          <Field label="Status do Serviço">
-            <div className="grid grid-cols-2 gap-2">
-              {STATUS_TIPO.map(({ value, label }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => set("status", String(value))}
-                  className={`h-[40px] rounded-[10px] border-2 text-sm font-medium transition-all ${
-                    form.status === String(value)
-                      ? "border-[#7EBEB2] bg-[#e8f5f2] text-[#2a594d]"
-                      : "border-gray-200 bg-white text-gray-500"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </Field>
+          {status !== null && (
+            <StatusServicoAcoes
+              servicoId={Number(servicoId)}
+              status={status}
+              temCostureiro={temCostureiro}
+              onAlterado={setStatus}
+            />
+          )}
 
           {/* ── Salvar ── */}
           <button

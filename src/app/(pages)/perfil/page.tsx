@@ -7,15 +7,16 @@ import { validateCPF, validateCNPJ, formatCpfCnpj } from "@/lib/validation"
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Lê campo suportando camelCase e PascalCase do backend */
-function get<T = any>(obj: any, camel: string): T | undefined {
-  if (obj == null) return undefined
-  if (camel in obj) return obj[camel]
+function get<T = string>(obj: unknown, camel: string): T | undefined {
+  if (obj == null || typeof obj !== "object") return undefined
+  const o = obj as Record<string, unknown>
+  if (camel in o) return o[camel] as T
   const pascal = camel.charAt(0).toUpperCase() + camel.slice(1)
-  return obj[pascal]
+  return o[pascal] as T
 }
 
 /** Mapeia o tipo do usuário (número ou string) para "costureiro" | "fornecedor" | "" */
-function mapTipo(tipo: any): "costureiro" | "fornecedor" | "" {
+function mapTipo(tipo: unknown): "costureiro" | "fornecedor" | "" {
   if (tipo === 0 || tipo === "0" || tipo === "Costureiro" || tipo === "costureiro") return "costureiro"
   if (tipo === 1 || tipo === "1" || tipo === "Fornecedor" || tipo === "fornecedor") return "fornecedor"
   return ""

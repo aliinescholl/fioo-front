@@ -1,70 +1,62 @@
 import Image from "next/image"
+import Link from "next/link"
+import { NotaResumo } from "@/components/molecules/Estrelas"
 
 type Props = {
+  id: number
   nome: string
-  localizacao: string
+  localizacao: string | null
   imagem: string
-  avaliacao: number
+  media: number | null
+  totalAvaliacoes: number
 }
 
-export function UserCard({ nome, localizacao, imagem, avaliacao }: Props) {
+export function UserCard({ id, nome, localizacao, imagem, media, totalAvaliacoes }: Props) {
   return (
-    <div
+    <Link
+      href={`/usuarios/${id}`}
       className="
       flex
       items-center
       justify-between
-      w-[317px]
-      h-[79px]
+      gap-2
+      w-full
+      min-h-[79px]
       border
       rounded-[15px]
       px-3
+      py-2
+      hover:border-[#84c4b4]
       "
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0">
 
         <Image
           src={imagem}
-          alt={nome}
+          alt=""
           width={60}
           height={60}
-          className="rounded-[15px]"
+          className="rounded-[15px] shrink-0 object-cover w-[60px] h-[60px]"
+          // fotos enviadas ficam no backend (/uploads, via rewrite); não passam pelo otimizador
+          unoptimized={imagem.startsWith("/uploads/")}
         />
 
-        <div className="flex flex-col">
-          <span className="font-semibold text-sm">
+        <div className="flex flex-col min-w-0">
+          <span className="font-semibold text-sm truncate">
             {nome}
           </span>
 
           <span className="text-xs text-gray-500">
-            {localizacao}
+            {localizacao || "Local não informado"}
           </span>
         </div>
 
       </div>
 
-     <div className="flex flex-col items-center">
+      <div className="shrink-0">
+        <NotaResumo media={media} total={totalAvaliacoes} compacto />
+      </div>
 
-      <Image
-        src="/star.svg"
-        alt="Avaliação"
-        width={20}
-        height={20}
-      />
-
-      <span
-        className="
-        font-[Abhaya_Libre]
-        font-normal
-        text-[16px]
-        leading-[100%]
-        "
-      >
-        {avaliacao}
-      </span>
-
-    </div>
-
-    </div>
+    </Link>
   )
 }
