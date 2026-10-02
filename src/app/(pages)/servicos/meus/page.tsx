@@ -5,19 +5,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import Image from "next/image"
 import { CandidatosModal } from "@/components/organisms/CandidatosModal"
-import { getCobrancaLabel, getPrazoLabel, type Servico } from "@/types/servico"
-
-const STATUS_CONFIG: Record<number, { label: string; bg: string; text: string; border: string }> = {
-  0: { label: "Ativo", bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
-  1: { label: "Em Andamento", bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-  2: { label: "Finalizado", bg: "bg-gray-50", text: "text-gray-500", border: "border-gray-200" },
-  3: { label: "Cancelado", bg: "bg-red-50", text: "text-red-600", border: "border-red-200" },
-}
-
-// Até a padronização de status (Fase 2), Ativo (0) e Em Andamento (1) contam como "em andamento"
-function estaEmAndamento(status: number) {
-  return status === 0 || status === 1
-}
+import { SERVICO_STATUS, STATUS_SERVICO_CONFIG, getCobrancaLabel, getPrazoLabel, type Servico } from "@/types/servico"
 
 export default function MeusServicosPage() {
   const { user } = useAuth()
@@ -136,7 +124,7 @@ export default function MeusServicosPage() {
         ) : (
           <div className="flex flex-col gap-3">
             {filtered.map(s => {
-              const statusCfg = STATUS_CONFIG[s.status] ?? STATUS_CONFIG[0]
+              const statusCfg = STATUS_SERVICO_CONFIG[s.status]
               return (
                 <div
                   key={s.id}
@@ -149,7 +137,7 @@ export default function MeusServicosPage() {
                       {s.categoriaServico || "Geral"}
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}>
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${statusCfg.className}`}>
                         {statusCfg.label}
                       </span>
                       <span className="text-[11px] font-medium text-gray-400 group-hover:text-[#7EBEB2] transition-colors flex items-center gap-1">
@@ -216,7 +204,7 @@ export default function MeusServicosPage() {
         <CandidatosModal
           servicoId={candidatosDe.id}
           servicoTitulo={candidatosDe.titulo}
-          podeAceitar={estaEmAndamento(candidatosDe.status)}
+          podeAceitar={candidatosDe.status === SERVICO_STATUS.EmAndamento}
           onClose={() => setCandidatosDe(null)}
           onAceito={loadServicos}
         />

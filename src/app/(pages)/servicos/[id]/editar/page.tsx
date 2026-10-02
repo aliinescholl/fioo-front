@@ -2,19 +2,13 @@
 
 import { useState, useEffect, useTransition } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { COBRANCA_OPCOES, PRAZO_OPCOES, PRAZO_TIPO, type CobrancaTipo, type PrazoTipo, type ServicoPayload } from "@/types/servico"
+import { COBRANCA_OPCOES, PRAZO_OPCOES, PRAZO_TIPO, type CobrancaTipo, type PrazoTipo, type ServicoPayload, type ServicoStatus } from "@/types/servico"
+import { StatusServicoAcoes } from "@/components/organisms/StatusServicoAcoes"
 
 const DATA_ESPECIFICA = String(PRAZO_TIPO.DataEspecifica)
 
 // ─── Enums (espelhando o backend C#) ─────────────────────────────────────────
 
-
-const STATUS_TIPO = [
-  { value: 0, label: "Ativo" },
-  { value: 1, label: "Em Andamento" },
-  { value: 2, label: "Finalizado" },
-  { value: 3, label: "Cancelado" },
-]
 
 const ESTADOS_BR = [
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS",
@@ -110,10 +104,11 @@ export default function EditarServicoPage() {
     valor: "",
     tipoPrazo: "" as string,
     dataPrazo: "",
-    status: "0",
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [status, setStatus] = useState<ServicoStatus | null>(null)
+  const [temCostureiro, setTemCostureiro] = useState(false)
 
   // ─── Carrega dados do serviço pelo ID diretamente ─────────────────────────────
   useEffect(() => {
@@ -143,8 +138,9 @@ export default function EditarServicoPage() {
           valor:           valorStr(get(s, "valor")),
           tipoPrazo:       enumStr(get(s, "tipoPrazo")),
           dataPrazo:       get(s, "dataPrazo")       ?? "",
-          status:          enumStr(get(s, "status")) || "0",
         })
+        setStatus(get<ServicoStatus>(s, "status") ?? null)
+        setTemCostureiro(get(s, "costureiroVinculado") != null)
       } catch (err) {
         setFetchError(err instanceof Error ? err.message : "Erro ao carregar serviço")
       } finally {
@@ -203,7 +199,6 @@ export default function EditarServicoPage() {
         valor: valorNum,
         tipoPrazo: Number(form.tipoPrazo) as PrazoTipo,
         dataPrazo: form.tipoPrazo === DATA_ESPECIFICA ? form.dataPrazo : null,
-        status: parseInt(form.status),
       }
 
       const res = await fetch(`/api/servicos/${servicoId}`, {
@@ -422,24 +417,14 @@ export default function EditarServicoPage() {
           )}
 
           {/* ── Status ── */}
-          <Field label="Status do Serviço">
-            <div className="grid grid-cols-2 gap-2">
-              {STATUS_TIPO.map(({ value, label }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => set("status", String(value))}
-                  className={`h-[40px] rounded-[10px] border-2 text-sm font-medium transition-all ${
-                    form.status === String(value)
-                      ? "border-[#7EBEB2] bg-[#e8f5f2] text-[#2a594d]"
-                      : "border-gray-200 bg-white text-gray-500"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </Field>
+          {status !== null && (
+            <StatusServicoAcoes
+              servicoId={Number(servicoId)}
+              status={status}
+              temCostureiro={temCostureiro}
+              onAlterado={setStatus}
+            />
+          )}
 
           {/* ── Salvar ── */}
           <button

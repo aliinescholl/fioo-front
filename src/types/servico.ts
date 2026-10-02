@@ -18,6 +18,15 @@ export const PRAZO_OPCOES: { value: PrazoTipo; label: string }[] = [
   { value: PRAZO_TIPO.DataEspecifica, label: "Data Específica" },
 ]
 
+export const SERVICO_STATUS = { EmAndamento: 1, Concluido: 2, Cancelado: 3 } as const
+export type ServicoStatus = (typeof SERVICO_STATUS)[keyof typeof SERVICO_STATUS]
+
+export const STATUS_SERVICO_CONFIG: Record<ServicoStatus, { label: string; className: string }> = {
+  [SERVICO_STATUS.EmAndamento]: { label: "Em andamento", className: "bg-blue-50 text-blue-700 border-blue-200" },
+  [SERVICO_STATUS.Concluido]: { label: "Concluído", className: "bg-green-50 text-green-700 border-green-200" },
+  [SERVICO_STATUS.Cancelado]: { label: "Cancelado", className: "bg-red-50 text-red-600 border-red-200" },
+}
+
 export interface UsuarioResumo {
   id: number
   nome: string
@@ -43,7 +52,7 @@ export interface Servico {
   tipoCobranca: CobrancaTipo
   tipoPrazo: PrazoTipo | null
   dataPrazo: string | null // "yyyy-MM-dd"; só existe quando tipoPrazo = Data Específica
-  status: number
+  status: ServicoStatus
   dataCriacao: string
   usuario: UsuarioResumo
   maquinarios: Maquinario[]
@@ -61,7 +70,6 @@ export interface ServicoPayload {
   valor: number | null
   tipoPrazo: PrazoTipo
   dataPrazo: string | null
-  status: number
 }
 
 export function getCobrancaLabel(tipo: CobrancaTipo) {

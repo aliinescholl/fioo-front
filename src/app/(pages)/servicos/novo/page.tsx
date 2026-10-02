@@ -10,13 +10,6 @@ const DATA_ESPECIFICA = String(PRAZO_TIPO.DataEspecifica)
 // ─── Enums (espelhando o backend C#) ─────────────────────────────────────────
 
 
-const STATUS_TIPO = [
-  { value: 0, label: "Ativo" },
-  { value: 1, label: "Em Andamento" },
-  { value: 2, label: "Finalizado" },
-  { value: 3, label: "Cancelado" },
-]
-
 const ESTADOS_BR = [
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS",
   "MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC",
@@ -81,7 +74,6 @@ export default function NovoServicoPage() {
     valor: "",
     tipoPrazo: "" as string,
     dataPrazo: "",
-    status: "0", // default: Ativo
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -128,7 +120,6 @@ export default function NovoServicoPage() {
         valor: form.valor ? parseFloat(form.valor) : null,
         tipoPrazo: Number(form.tipoPrazo) as PrazoTipo,
         dataPrazo: form.tipoPrazo === DATA_ESPECIFICA ? form.dataPrazo : null,
-        status: parseInt(form.status),
       }
 
       const res = await fetch("/api/servicos", {
@@ -267,23 +258,6 @@ export default function NovoServicoPage() {
               {errors.dataPrazo && <p className="text-xs text-red-500">{errors.dataPrazo}</p>}
             </Field>
           )}
-
-          {/* ── Status ── */}
-          <Field label="Status do Serviço">
-            <div className="grid grid-cols-2 gap-2">
-              {STATUS_TIPO.map(({ value, label }) => (
-                <button key={value} type="button"
-                  onClick={() => set("status", String(value))}
-                  className={`h-[40px] rounded-[10px] border-2 text-sm font-medium transition-all ${
-                    form.status === String(value)
-                      ? "border-[#7EBEB2] bg-[#e8f5f2] text-[#2a594d]"
-                      : "border-gray-200 bg-white text-gray-500"
-                  }`}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          </Field>
 
           {/* ── Cadastrar ── */}
           <button
