@@ -5,28 +5,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import Image from "next/image"
 import { CandidatosModal } from "@/components/organisms/CandidatosModal"
-
-interface Maquinario {
-  id: number
-  nome: string
-}
-
-interface Servico {
-  id: number
-  titulo: string
-  descricao?: string
-  cidade?: string
-  estado?: string
-  categoriaServico?: string
-  valor?: number
-  tipoCobranca: number
-  tipoPrazo?: number
-  dataPrazo?: string
-  status: number
-  dataCriacao: string
-  maquinarios?: Maquinario[]
-  costureiroVinculado?: { id: number; nome: string } | null
-}
+import { getCobrancaLabel, getPrazoLabel, type Servico } from "@/types/servico"
 
 const STATUS_CONFIG: Record<number, { label: string; bg: string; text: string; border: string }> = {
   0: { label: "Ativo", bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
@@ -38,25 +17,6 @@ const STATUS_CONFIG: Record<number, { label: string; bg: string; text: string; b
 // Até a padronização de status (Fase 2), Ativo (0) e Em Andamento (1) contam como "em andamento"
 function estaEmAndamento(status: number) {
   return status === 0 || status === 1
-}
-
-function getCobrancaLabel(tipo: number) {
-  return tipo === 0 ? "Por Peça" : "Por Operação"
-}
-
-function getPrazoLabel(tipo?: number, data?: string) {
-  if (tipo === undefined) return "A combinar"
-  switch (tipo) {
-    case 0: return "Semanal"
-    case 1: return "Quinzenal"
-    case 2: return "Mensal"
-    case 3: {
-      if (!data) return "Data específica"
-      const parts = data.split("-")
-      return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : data
-    }
-    default: return "A combinar"
-  }
 }
 
 export default function MeusServicosPage() {

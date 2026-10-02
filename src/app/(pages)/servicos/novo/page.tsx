@@ -3,20 +3,12 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
+import { COBRANCA_OPCOES, PRAZO_OPCOES, PRAZO_TIPO, type CobrancaTipo, type PrazoTipo, type ServicoPayload } from "@/types/servico"
+
+const DATA_ESPECIFICA = String(PRAZO_TIPO.DataEspecifica)
 
 // ─── Enums (espelhando o backend C#) ─────────────────────────────────────────
 
-const COBRANCA_TIPO = [
-  { value: 0, label: "Por Peça" },
-  { value: 1, label: "Por Operação" },
-]
-
-const PRAZO_TIPO = [
-  { value: 0, label: "Semanal" },
-  { value: 1, label: "Quinzenal" },
-  { value: 2, label: "Mensal" },
-  { value: 3, label: "Data Específica" },
-]
 
 const STATUS_TIPO = [
   { value: 0, label: "Ativo" },
@@ -99,12 +91,19 @@ export default function NovoServicoPage() {
     if (errors[name]) setErrors(p => ({ ...p, [name]: "" }))
   }
 
+  // A data só existe para "Data Específica"; ao trocar de tipo, descarta a data digitada
+  function escolherPrazo(tipo: PrazoTipo) {
+    set("tipoPrazo", String(tipo))
+    if (String(tipo) !== DATA_ESPECIFICA) set("dataPrazo", "")
+  }
+
   function validate(): boolean {
     const e: Record<string, string> = {}
     if (!form.titulo.trim()) e.titulo = "Título é obrigatório"
     if (form.tipoCobranca === "") e.tipoCobranca = "Selecione o tipo de cobrança"
     if (form.valor && isNaN(parseFloat(form.valor))) e.valor = "Valor inválido"
-    if (form.tipoPrazo === "3" && !form.dataPrazo) e.dataPrazo = "Informe a data do prazo"
+    if (form.tipoPrazo === "") e.tipoPrazo = "Escolha o prazo de entrega"
+    if (form.tipoPrazo === DATA_ESPECIFICA && !form.dataPrazo) e.dataPrazo = "Informe a data do prazo"
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -119,16 +118,16 @@ export default function NovoServicoPage() {
     if (!validate()) return
 
     startTransition(async () => {
-      const payload: Record<string, unknown> = {
+      const payload: ServicoPayload = {
         titulo: form.titulo.trim(),
         descricao: form.descricao.trim() || null,
         cidade: form.cidade.trim() || null,
         estado: form.estado || null,
-        tipoCobranca: parseInt(form.tipoCobranca),
+        tipoCobranca: Number(form.tipoCobranca) as CobrancaTipo,
         categoriaServico: form.categoriaServico.trim() || null,
         valor: form.valor ? parseFloat(form.valor) : null,
-        tipoPrazo: form.tipoPrazo !== "" ? parseInt(form.tipoPrazo) : null,
-        dataPrazo: form.tipoPrazo === "3" && form.dataPrazo ? form.dataPrazo : null,
+        tipoPrazo: Number(form.tipoPrazo) as PrazoTipo,
+        dataPrazo: form.tipoPrazo === DATA_ESPECIFICA ? form.dataPrazo : null,
         status: parseInt(form.status),
       }
 
@@ -196,7 +195,7 @@ export default function NovoServicoPage() {
           {/* ── Tipo de Cobrança ── */}
           <Field label="Tipo de Cobrança" required>
             <div className="flex gap-3">
-              {COBRANCA_TIPO.map(({ value, label }) => (
+              {COBRANCA_OPCOES.map(({ value, label }) => (
                 <button key={value} type="button"
                   onClick={() => set("tipoCobranca", String(value))}
                   className={`flex-1 h-[44px] rounded-[20px] border-2 text-sm font-semibold transition-all ${
@@ -238,11 +237,11 @@ export default function NovoServicoPage() {
           </div>
 
           {/* ── Tipo de Prazo ── */}
-          <Field label="Prazo de Entrega">
+          <Field label="Prazo de Entrega" required>
             <div className="grid grid-cols-2 gap-2">
-              {PRAZO_TIPO.map(({ value, label }) => (
+              {PRAZO_OPCOES.map(({ value, label }) => (
                 <button key={value} type="button"
-                  onClick={() => set("tipoPrazo", String(value))}
+                  onClick={() => escolherPrazo(value)}
                   className={`h-[40px] rounded-[10px] border-2 text-sm font-medium transition-all ${
                     form.tipoPrazo === String(value)
                       ? "border-[#7EBEB2] bg-[#e8f5f2] text-[#2a594d]"
@@ -252,17 +251,18 @@ export default function NovoServicoPage() {
                 </button>
               ))}
             </div>
+            {errors.tipoPrazo && <p className="text-xs text-red-500">{errors.tipoPrazo}</p>}
           </Field>
 
           {/* ── Data Prazo (condicional) ── */}
-          {form.tipoPrazo === "3" && (
+          {form.tipoPrazo === DATA_ESPECIFICA && (
             <Field label="Data do Prazo" required>
               <input
                 type="date"
                 className={`${inp} ${errors.dataPrazo ? "border-red-400 bg-red-50" : ""}`}
                 value={form.dataPrazo}
                 onChange={e => set("dataPrazo", e.target.value)}
-                min={new Date().toISOString().split("T")[0]}
+                min={new Date().toLocaleDateString("sv-SE") /* yyyy-MM-dd no fuso do aparelho */}
               />
               {errors.dataPrazo && <p className="text-xs text-red-500">{errors.dataPrazo}</p>}
             </Field>

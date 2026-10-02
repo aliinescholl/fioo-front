@@ -3,38 +3,7 @@
 import { useState, useEffect, useTransition } from "react"
 import { useAuth } from "@/context/AuthContext"
 import Image from "next/image"
-
-interface Maquinario {
-  id: number
-  nome: string
-}
-
-interface Fornecedor {
-  id: number
-  nome: string
-  nomeUsuario: string
-  fotoPerfilUrl?: string
-  cidade?: string
-  estado?: string
-}
-
-interface Servico {
-  id: number
-  titulo: string
-  descricao?: string
-  cidade?: string
-  estado?: string
-  categoriaServico?: string
-  valor?: number
-  tipoCobranca: number // 0: Por Peça, 1: Por Operação
-  tipoPrazo?: number // 0: Semanal, 1: Quinzenal, 2: Mensal, 3: Data Específica
-  dataPrazo?: string
-  status: number
-  dataCriacao: string
-  usuario: Fornecedor
-  maquinarios?: Maquinario[]
-  costureiroVinculado?: Fornecedor | null
-}
+import { getCobrancaLabel, getPrazoLabel, type Servico } from "@/types/servico"
 
 interface Candidatura {
   id: number
@@ -155,24 +124,6 @@ export default function ServicosFeedPage() {
         showToast(undefined, "Erro ao enviar candidatura")
       }
     })
-  }
-
-  const getCobrancaLabel = (tipo: number) => {
-    return tipo === 0 ? "Por Peça" : "Por Operação"
-  }
-
-  const getPrazoLabel = (tipo?: number, data?: string) => {
-    if (tipo === undefined) return "A combinar"
-    switch (tipo) {
-      case 0: return "Semanal"
-      case 1: return "Quinzenal"
-      case 2: return "Mensal"
-      case 3:
-        if (!data) return "Data específica"
-        const parts = data.split("-")
-        return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : data
-      default: return "A combinar"
-    }
   }
 
   const getCandidaturaStatusBadge = (status: number) => {
