@@ -85,3 +85,99 @@ export function getPrazoLabel(tipo: PrazoTipo | null | undefined, data: string |
   }
   return PRAZO_OPCOES.find(o => o.value === tipo)?.label ?? "A combinar"
 }
+
+// ─── Filtros e ordenação da listagem (espelham ServicoFiltroDto do backend) ──
+
+export const ORDENACAO_SERVICOS = [
+  { value: "relevantes", label: "Mais relevantes" },
+  { value: "prazo-proximo", label: "Prazo mais próximo" },
+  { value: "prazo-distante", label: "Prazo mais distante" },
+  { value: "maior-valor", label: "Maior valor" },
+  { value: "menor-valor", label: "Menor valor" },
+] as const
+export type OrdenacaoServicos = (typeof ORDENACAO_SERVICOS)[number]["value"]
+
+export interface FiltrosServicos {
+  busca: string
+  uf: string
+  cidade: string
+  valorMin: string
+  valorMax: string
+  cobranca: CobrancaTipo | null
+  prazo: PrazoTipo | null
+  categoria: string
+  status: ServicoStatus | null
+  ordenacao: OrdenacaoServicos
+}
+
+export const FILTROS_SERVICOS_VAZIOS: FiltrosServicos = {
+  busca: "",
+  uf: "",
+  cidade: "",
+  valorMin: "",
+  valorMax: "",
+  cobranca: null,
+  prazo: null,
+  categoria: "",
+  status: null,
+  ordenacao: "relevantes",
+}
+
+export interface PaginaServicos {
+  itens: Servico[]
+  pagina: number
+  temMais: boolean
+}
+
+function lerOpcao<T extends number>(valor: string | null, validos: readonly T[]): T | null {
+  if (valor === null || valor === "") return null
+  const n = Number(valor)
+  return validos.includes(n as T) ? (n as T) : null
+}
+
+/** Converte "1.234,50" ou "12.5" em número; "" se inválido. */
+export function normalizarValor(valor: string): string {
+  const limpo = valor.trim().replace(/\./g, valor.includes(",") ? "" : ".").replace(",", ".")
+  return limpo !== "" && !isNaN(Number(limpo)) ? String(Number(limpo)) : ""
+}
+
+/** Lê os filtros da URL, descartando valores inválidos. */
+export function lerFiltrosServicos(params: URLSearchParams): FiltrosServicos {
+  const ordenacao = params.get("ordenacao")
+  return {
+    busca: params.get("busca") ?? "",
+    uf: params.get("uf") ?? "",
+    cidade: params.get("cidade") ?? "",
+    valorMin: normalizarValor(params.get("valorMin") ?? ""),
+    valorMax: normalizarValor(params.get("valorMax") ?? ""),
+    cobranca: lerOpcao(params.get("cobranca"), Object.values(COBRANCA_TIPO)),
+    prazo: lerOpcao(params.get("prazo"), Object.values(PRAZO_TIPO)),
+    categoria: params.get("categoria") ?? "",
+    status: lerOpcao(params.get("status"), Object.values(SERVICO_STATUS)),
+    ordenacao: ORDENACAO_SERVICOS.some(o => o.value === ordenacao) ? (ordenacao as OrdenacaoServicos) : "relevantes",
+  }
+}
+
+/** Gera a query string (para a URL e para a API), omitindo o que está vazio ou no padrão. */
+export function filtrosServicosParaQuery(f: FiltrosServicos): URLSearchParams {
+  const q = new URLSearchParams()
+  if (f.busca.trim()) q.set("busca", f.busca.trim())
+  if (f.uf) q.set("uf", f.uf)
+  if (f.cidade.trim()) q.set("cidade", f.cidade.trim())
+  if (normalizarValor(f.valorMin)) q.set("valorMin", normalizarValor(f.valorMin))
+  if (normalizarValor(f.valorMax)) q.set("valorMax", normalizarValor(f.valorMax))
+  if (f.cobranca !== null) q.set("cobranca", String(f.cobranca))
+  if (f.prazo !== null) q.set("prazo", String(f.prazo))
+  if (f.categoria) q.set("categoria", f.categoria)
+  if (f.status !== null) q.set("status", String(f.status))
+  if (f.ordenacao !== "relevantes") q.set("ordenacao", f.ordenacao)
+  return q
+}
+
+/** Quantos filtros do painel estão ativos (busca e ordenação não contam). */
+export function contarFiltrosServicos(f: FiltrosServicos): number {
+  return [
+    f.uf, f.cidade.trim(), normalizarValor(f.valorMin) || normalizarValor(f.valorMax),
+    f.cobranca !== null, f.prazo !== null, f.categoria, f.status !== null,
+  ].filter(Boolean).length
+}
