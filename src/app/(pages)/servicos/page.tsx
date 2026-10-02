@@ -4,7 +4,11 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useTransit
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import Image from "next/image"
+import Link from "next/link"
 import { FilterTag } from "@/components/molecules/FilterTag"
+import { AvaliacaoModal } from "@/components/organisms/AvaliacaoModal"
+import { useAvaliacoesFeitas } from "@/lib/useAvaliacoesFeitas"
+import { PAPEL } from "@/types/avaliacao"
 import { OpcoesFiltro, PainelFiltros } from "@/components/organisms/PainelFiltros"
 import { ESTADOS_BR } from "@/data/estados"
 import {
@@ -102,6 +106,8 @@ function ServicosFeed() {
   }
 
   const [selectedServico, setSelectedServico] = useState<Servico | null>(null)
+  const [avaliando, setAvaliando] = useState<Servico | null>(null)
+  const { feitas, recarregar: recarregarFeitas } = useAvaliacoesFeitas()
   const [toast, setToast] = useState<{ visible: boolean; error?: string; message?: string }>({ visible: false })
   const [isPending, startTransition] = useTransition()
 
@@ -557,8 +563,11 @@ function ServicosFeed() {
               </button>
             </div>
 
-            {/* Seção Fornecedor */}
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-[12px] border border-gray-100">
+            {/* Seção Fornecedor (abre o perfil público) */}
+            <Link
+              href={`/usuarios/${selectedServico.usuario.id}`}
+              className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-[12px] border border-gray-100"
+            >
               <div className="w-[36px] h-[36px] rounded-full bg-[#7EBEB2] flex items-center justify-center text-white text-base font-bold">
                 {selectedServico.usuario.nome.charAt(0).toUpperCase()}
               </div>
@@ -569,7 +578,8 @@ function ServicosFeed() {
                   <span className="text-[9px] text-gray-500 mt-0.5">{selectedServico.usuario.cidade} - {selectedServico.usuario.estado}</span>
                 )}
               </div>
-            </div>
+              <span className="ml-auto text-[11px] font-semibold text-[#2a594d]">Ver perfil</span>
+            </Link>
 
             {/* Detalhes do Serviço */}
             <div className="flex flex-col gap-2.5">
@@ -614,7 +624,21 @@ function ServicosFeed() {
 
             {/* Ações */}
             <div className="flex flex-col gap-2 pt-2 border-t border-gray-100 mt-1">
-              {appliedStatusMap.has(selectedServico.id) ? (
+              {appliedStatusMap.get(selectedServico.id) === 1 && selectedServico.status === SERVICO_STATUS.Concluido ? (
+                feitas.has(selectedServico.id) ? (
+                  <div className="w-full h-[46px] rounded-[15px] border border-green-200 bg-green-50 flex items-center justify-center text-green-700 font-semibold text-sm">
+                    Avaliação enviada
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => { setAvaliando(selectedServico); setSelectedServico(null) }}
+                    className="w-full h-[46px] rounded-[15px] border-2 border-[#2a594d] bg-[#7EBEB2] text-[#2a594d] font-bold text-sm"
+                  >
+                    Avaliar fornecedor
+                  </button>
+                )
+              ) : appliedStatusMap.has(selectedServico.id) ? (
                 <div className="flex flex-col items-center gap-1.5 w-full">
                   <div className="w-full h-[46px] rounded-[15px] border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-500 font-semibold text-sm gap-2">
                     <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
@@ -661,6 +685,17 @@ function ServicosFeed() {
 
           </div>
         </div>
+      )}
+
+      {avaliando && (
+        <AvaliacaoModal
+          servicoId={avaliando.id}
+          servicoTitulo={avaliando.titulo}
+          papelAvaliado={PAPEL.Fornecedor}
+          nomeAvaliado={avaliando.usuario.nome}
+          onClose={() => setAvaliando(null)}
+          onEnviada={() => { setAvaliando(null); recarregarFeitas(); showToast("Avaliação enviada. Obrigado!") }}
+        />
       )}
     </>
   )

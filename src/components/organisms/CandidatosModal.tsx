@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 
 interface Candidato {
@@ -129,7 +130,9 @@ export function CandidatosModal({ servicoId, servicoTitulo, podeAceitar, onClose
                       {c.usuario.nome.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex flex-col flex-1 min-w-0">
-                      <span className="text-sm font-semibold text-gray-800 truncate">{c.usuario.nome}</span>
+                      <Link href={`/usuarios/${c.usuario.id}`} className="text-sm font-semibold text-[#2a594d] underline truncate">
+                        {c.usuario.nome}
+                      </Link>
                       <span className="text-xs text-gray-400">@{c.usuario.nomeUsuario}</span>
                       {c.usuario.cidade && (
                         <span className="text-xs text-gray-500">{c.usuario.cidade}{c.usuario.estado ? ` - ${c.usuario.estado}` : ""}</span>

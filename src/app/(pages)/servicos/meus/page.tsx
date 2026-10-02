@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import Image from "next/image"
 import { CandidatosModal } from "@/components/organisms/CandidatosModal"
+import { AvaliacaoModal } from "@/components/organisms/AvaliacaoModal"
+import { useAvaliacoesFeitas } from "@/lib/useAvaliacoesFeitas"
+import { PAPEL } from "@/types/avaliacao"
 import { SERVICO_STATUS, STATUS_SERVICO_CONFIG, getCobrancaLabel, getPrazoLabel, type Servico } from "@/types/servico"
 
 export default function MeusServicosPage() {
@@ -16,6 +19,8 @@ export default function MeusServicosPage() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const [candidatosDe, setCandidatosDe] = useState<Servico | null>(null)
+  const [avaliando, setAvaliando] = useState<Servico | null>(null)
+  const { feitas, recarregar: recarregarFeitas } = useAvaliacoesFeitas()
 
   const loadServicos = async () => {
     if (!user?.id) return
@@ -184,13 +189,29 @@ export default function MeusServicosPage() {
                         ? <>Costureiro: <strong>{s.costureiroVinculado.nome}</strong></>
                         : "Nenhum costureiro aceito"}
                     </span>
-                    <button
-                      type="button"
-                      onClick={e => { e.stopPropagation(); setCandidatosDe(s) }}
-                      className="shrink-0 h-[40px] px-3 rounded-[10px] border-2 border-[#7EBEB2] bg-white text-[#2a594d] text-xs font-bold hover:bg-[#e8f5f2] transition-colors"
-                    >
-                      Ver candidatos
-                    </button>
+                    {s.status === SERVICO_STATUS.Concluido && s.costureiroVinculado ? (
+                      feitas.has(s.id) ? (
+                        <span className="shrink-0 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-full">
+                          Avaliação enviada
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); setAvaliando(s) }}
+                          className="shrink-0 h-[40px] px-3 rounded-[10px] border-2 border-[#2a594d] bg-[#7EBEB2] text-[#2a594d] text-xs font-bold"
+                        >
+                          Avaliar costureiro
+                        </button>
+                      )
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); setCandidatosDe(s) }}
+                        className="shrink-0 h-[40px] px-3 rounded-[10px] border-2 border-[#7EBEB2] bg-white text-[#2a594d] text-xs font-bold hover:bg-[#e8f5f2] transition-colors"
+                      >
+                        Ver candidatos
+                      </button>
+                    )}
                   </div>
                 </div>
               )
@@ -207,6 +228,17 @@ export default function MeusServicosPage() {
           podeAceitar={candidatosDe.status === SERVICO_STATUS.EmAndamento}
           onClose={() => setCandidatosDe(null)}
           onAceito={loadServicos}
+        />
+      )}
+
+      {avaliando?.costureiroVinculado && (
+        <AvaliacaoModal
+          servicoId={avaliando.id}
+          servicoTitulo={avaliando.titulo}
+          papelAvaliado={PAPEL.Costureiro}
+          nomeAvaliado={avaliando.costureiroVinculado.nome}
+          onClose={() => setAvaliando(null)}
+          onEnviada={() => { setAvaliando(null); recarregarFeitas() }}
         />
       )}
     </main>
