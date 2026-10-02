@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
+import { useCategorias } from "@/lib/useCategorias"
 import { COBRANCA_OPCOES, PRAZO_OPCOES, PRAZO_TIPO, type CobrancaTipo, type PrazoTipo, type ServicoPayload } from "@/types/servico"
 
 const DATA_ESPECIFICA = String(PRAZO_TIPO.DataEspecifica)
@@ -77,6 +78,7 @@ export default function NovoServicoPage() {
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const categorias = useCategorias()
 
   function set(name: string, value: string) {
     setForm(p => ({ ...p, [name]: value }))
@@ -163,7 +165,7 @@ export default function NovoServicoPage() {
           {/* ── Título ── */}
           <Field label="Título" required>
             <input className={`${inp} ${errors.titulo ? "border-red-400 bg-red-50" : ""}`}
-              value={form.titulo} onChange={e => set("titulo", e.target.value)}
+              value={form.titulo} maxLength={200} onChange={e => set("titulo", e.target.value)}
               placeholder="Ex: Costura de jeans, Fornecimento de tecido..." />
             {errors.titulo && <p className="text-xs text-red-500">{errors.titulo}</p>}
           </Field>
@@ -178,9 +180,13 @@ export default function NovoServicoPage() {
 
           {/* ── Categoria ── */}
           <Field label="Categoria do Serviço">
-            <input className={inp} value={form.categoriaServico}
+            <input className={inp} value={form.categoriaServico} list="categorias-existentes" maxLength={100}
               onChange={e => set("categoriaServico", e.target.value)}
               placeholder="Ex: Costura, Bordado, Malharia..." />
+            <datalist id="categorias-existentes">
+              {categorias.map(c => <option key={c} value={c} />)}
+            </datalist>
+            <p className="text-xs text-gray-400">Escolha uma categoria da lista ou digite uma nova.</p>
           </Field>
 
           {/* ── Tipo de Cobrança ── */}
@@ -218,7 +224,7 @@ export default function NovoServicoPage() {
             <label className="text-sm font-semibold text-gray-700">Localização</label>
             <div className="flex gap-2">
               <input className={`${inp} flex-1`} value={form.cidade}
-                onChange={e => set("cidade", e.target.value)} placeholder="Cidade" />
+                maxLength={100} onChange={e => set("cidade", e.target.value)} placeholder="Cidade" />
               <select className={`${inp} w-[80px]`} value={form.estado}
                 onChange={e => set("estado", e.target.value)}>
                 <option value="">UF</option>

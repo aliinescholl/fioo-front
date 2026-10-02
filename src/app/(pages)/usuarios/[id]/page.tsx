@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
+import Image from "next/image"
 import { NotaResumo } from "@/components/molecules/Estrelas"
 import { PAPEL, type AvaliacoesUsuario, type PerfilPublico, type ResumoAvaliacoes } from "@/types/avaliacao"
 
@@ -75,9 +76,20 @@ export default function PerfilPublicoPage() {
         </button>
 
         <section className="flex items-center gap-4 p-4 border border-gray-100 rounded-[15px] bg-white shadow-sm">
-          <div className="w-[64px] h-[64px] shrink-0 rounded-full bg-[#7EBEB2] flex items-center justify-center text-white text-2xl font-bold">
-            {perfil.nome.charAt(0).toUpperCase()}
-          </div>
+          {perfil.fotoPerfilUrl ? (
+            <Image
+              src={perfil.fotoPerfilUrl}
+              alt=""
+              width={64}
+              height={64}
+              unoptimized
+              className="w-[64px] h-[64px] shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-[64px] h-[64px] shrink-0 rounded-full bg-[#7EBEB2] flex items-center justify-center text-white text-2xl font-bold">
+              {perfil.nome.charAt(0).toUpperCase()}
+            </div>
+          )}
           <div className="flex flex-col min-w-0">
             <h2 className="text-lg font-bold text-gray-800 truncate">{perfil.nome}</h2>
             <span className="text-xs text-gray-400">@{perfil.nomeUsuario}</span>

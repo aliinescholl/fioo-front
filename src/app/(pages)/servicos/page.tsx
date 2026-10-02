@@ -8,6 +8,7 @@ import Link from "next/link"
 import { FilterTag } from "@/components/molecules/FilterTag"
 import { AvaliacaoModal } from "@/components/organisms/AvaliacaoModal"
 import { useAvaliacoesFeitas } from "@/lib/useAvaliacoesFeitas"
+import { useCategorias } from "@/lib/useCategorias"
 import { PAPEL } from "@/types/avaliacao"
 import { OpcoesFiltro, PainelFiltros } from "@/components/organisms/PainelFiltros"
 import { ESTADOS_BR } from "@/data/estados"
@@ -89,7 +90,7 @@ function ServicosFeed() {
   const [pagina, setPagina] = useState(1)
   const [temMais, setTemMais] = useState(false)
   const [candidaturas, setCandidaturas] = useState<Candidatura[]>([])
-  const [categorias, setCategorias] = useState<string[]>([])
+  const categorias = useCategorias()
   const [loading, setLoading] = useState(true)
   const [carregandoMais, setCarregandoMais] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -173,13 +174,6 @@ function ServicosFeed() {
   useEffect(() => {
     carregarCandidaturas()
   }, [carregarCandidaturas])
-
-  useEffect(() => {
-    fetch("/api/servicos/categorias")
-      .then(res => (res.ok ? res.json() : []))
-      .then((data: string[]) => setCategorias(data))
-      .catch(() => setCategorias([]))
-  }, [])
 
   function abrirFecharPainel() {
     if (!painelAberto) setRascunho(filtros)

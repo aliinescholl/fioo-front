@@ -36,7 +36,9 @@ export function UserCard({ id, nome, localizacao, imagem, media, totalAvaliacoes
           alt=""
           width={60}
           height={60}
-          className="rounded-[15px] shrink-0"
+          className="rounded-[15px] shrink-0 object-cover w-[60px] h-[60px]"
+          // fotos enviadas ficam no backend (/uploads, via rewrite); não passam pelo otimizador
+          unoptimized={imagem.startsWith("/uploads/")}
         />
 
         <div className="flex flex-col min-w-0">

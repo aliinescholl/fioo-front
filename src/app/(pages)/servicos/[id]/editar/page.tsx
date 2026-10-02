@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { COBRANCA_OPCOES, PRAZO_OPCOES, PRAZO_TIPO, type CobrancaTipo, type PrazoTipo, type ServicoPayload, type ServicoStatus } from "@/types/servico"
+import { useCategorias } from "@/lib/useCategorias"
 import { StatusServicoAcoes } from "@/components/organisms/StatusServicoAcoes"
 
 const DATA_ESPECIFICA = String(PRAZO_TIPO.DataEspecifica)
@@ -107,6 +108,7 @@ export default function EditarServicoPage() {
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const categorias = useCategorias()
   const [status, setStatus] = useState<ServicoStatus | null>(null)
   const [temCostureiro, setTemCostureiro] = useState(false)
 
@@ -292,6 +294,7 @@ export default function EditarServicoPage() {
               id="editar-titulo"
               className={`${inp} ${errors.titulo ? "border-red-400 bg-red-50" : ""}`}
               value={form.titulo}
+              maxLength={200}
               onChange={e => set("titulo", e.target.value)}
               placeholder="Ex: Costura de jeans, Fornecimento de tecido..."
             />
@@ -315,10 +318,16 @@ export default function EditarServicoPage() {
             <input
               id="editar-categoria"
               className={inp}
+              list="categorias-existentes"
+              maxLength={100}
               value={form.categoriaServico}
               onChange={e => set("categoriaServico", e.target.value)}
               placeholder="Ex: Costura, Bordado, Malharia..."
             />
+            <datalist id="categorias-existentes">
+              {categorias.map(c => <option key={c} value={c} />)}
+            </datalist>
+            <p className="text-xs text-gray-400">Escolha uma categoria da lista ou digite uma nova.</p>
           </Field>
 
           {/* ── Tipo de Cobrança ── */}
@@ -366,6 +375,7 @@ export default function EditarServicoPage() {
                 id="editar-cidade"
                 className={`${inp} flex-1`}
                 value={form.cidade}
+                maxLength={100}
                 onChange={e => set("cidade", e.target.value)}
                 placeholder="Cidade"
               />
