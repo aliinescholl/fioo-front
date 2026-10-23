@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /** Busca dados do usuário a partir do cookie (server-side decode) */
   const fetchUser = useCallback(async () => {
     try {
-      const res = await fetch("/api/auth/me", { cache: "no-store" })
+      const res = await fetch("/api/usuarios/me", { cache: "no-store" })
       if (res.ok) {
         const { user } = await res.json()
         setUser(user)
@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string
   ): Promise<{ exists: boolean; error?: string }> {
     try {
-      const res = await fetch("/api/auth/check-email", {
+      const res = await fetch("/api/usuarios/check-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     senha: string
   ): Promise<{ error?: string }> {
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/usuarios/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, senha }),
@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     cnpj?: string
   ): Promise<{ error?: string }> {
     try {
-      const res = await fetch("/api/auth/register", {
+      const res = await fetch("/api/usuarios", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nome, email, senha: senha, ehCostureiro, cnpj }),
@@ -133,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /** Remove o cookie HttpOnly via servidor e redireciona para / */
   async function logout(): Promise<void> {
-    await fetch("/api/auth/logout", { method: "POST" })
+    await fetch("/api/usuarios/logout", { method: "POST" })
     setUser(null)
     router.push("/")
   }

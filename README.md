@@ -2,19 +2,34 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+### 1. Configurar variáveis de ambiente
+
+Copie o arquivo de exemplo e ajuste o IP/porta do backend conforme necessário:
+
+```bash
+cp .env.example .env.local
+```
+
+Edite o `.env.local`:
+
+```env
+# URL base do backend .NET (sem barra no final)
+API_BASE_URL=http://localhost:5000
+```
+
+### 2. Instalar dependências
+
+```bash
+npm install
+```
+
+### 3. Rodar o servidor de desenvolvimento
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:5131](http://localhost:5131) with your browser to see the result.
+Abra [http://localhost:3000](http://localhost:3000) no navegador para ver o resultado.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

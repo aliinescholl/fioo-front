@@ -7,6 +7,15 @@ const nextConfig: NextConfig = {
     if (!process.env.API_BASE_URL) return [];
     return [{ source: "/uploads/:path*", destination: `${process.env.API_BASE_URL}/uploads/:path*` }];
   },
+  async redirects() {
+    return [
+      {
+        source: "/recuperar-senha",
+        destination: "/esqueceu-senha",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
