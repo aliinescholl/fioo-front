@@ -3,27 +3,13 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
+import { useCategorias } from "@/lib/useCategorias"
+import { COBRANCA_OPCOES, PRAZO_OPCOES, PRAZO_TIPO, type CobrancaTipo, type PrazoTipo, type ServicoPayload } from "@/types/servico"
+
+const DATA_ESPECIFICA = String(PRAZO_TIPO.DataEspecifica)
 
 // ─── Enums (espelhando o backend C#) ─────────────────────────────────────────
 
-const COBRANCA_TIPO = [
-  { value: 0, label: "Por Peça" },
-  { value: 1, label: "Por Operação" },
-]
-
-const PRAZO_TIPO = [
-  { value: 0, label: "Semanal" },
-  { value: 1, label: "Quinzenal" },
-  { value: 2, label: "Mensal" },
-  { value: 3, label: "Data Específica" },
-]
-
-const STATUS_TIPO = [
-  { value: 0, label: "Ativo" },
-  { value: 1, label: "Em Andamento" },
-  { value: 2, label: "Finalizado" },
-  { value: 3, label: "Cancelado" },
-]
 
 const ESTADOS_BR = [
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS",
@@ -89,14 +75,20 @@ export default function NovoServicoPage() {
     valor: "",
     tipoPrazo: "" as string,
     dataPrazo: "",
-    status: "0", // default: Ativo
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const categorias = useCategorias()
 
   function set(name: string, value: string) {
     setForm(p => ({ ...p, [name]: value }))
     if (errors[name]) setErrors(p => ({ ...p, [name]: "" }))
+  }
+
+  // A data só existe para "Data Específica"; ao trocar de tipo, descarta a data digitada
+  function escolherPrazo(tipo: PrazoTipo) {
+    set("tipoPrazo", String(tipo))
+    if (String(tipo) !== DATA_ESPECIFICA) set("dataPrazo", "")
   }
 
   function validate(): boolean {
@@ -104,7 +96,8 @@ export default function NovoServicoPage() {
     if (!form.titulo.trim()) e.titulo = "Título é obrigatório"
     if (form.tipoCobranca === "") e.tipoCobranca = "Selecione o tipo de cobrança"
     if (form.valor && isNaN(parseFloat(form.valor))) e.valor = "Valor inválido"
-    if (form.tipoPrazo === "3" && !form.dataPrazo) e.dataPrazo = "Informe a data do prazo"
+    if (form.tipoPrazo === "") e.tipoPrazo = "Escolha o prazo de entrega"
+    if (form.tipoPrazo === DATA_ESPECIFICA && !form.dataPrazo) e.dataPrazo = "Informe a data do prazo"
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -119,17 +112,16 @@ export default function NovoServicoPage() {
     if (!validate()) return
 
     startTransition(async () => {
-      const payload: Record<string, unknown> = {
+      const payload: ServicoPayload = {
         titulo: form.titulo.trim(),
         descricao: form.descricao.trim() || null,
         cidade: form.cidade.trim() || null,
         estado: form.estado || null,
-        tipoCobranca: parseInt(form.tipoCobranca),
+        tipoCobranca: Number(form.tipoCobranca) as CobrancaTipo,
         categoriaServico: form.categoriaServico.trim() || null,
         valor: form.valor ? parseFloat(form.valor) : null,
-        tipoPrazo: form.tipoPrazo !== "" ? parseInt(form.tipoPrazo) : null,
-        dataPrazo: form.tipoPrazo === "3" && form.dataPrazo ? form.dataPrazo : null,
-        status: parseInt(form.status),
+        tipoPrazo: Number(form.tipoPrazo) as PrazoTipo,
+        dataPrazo: form.tipoPrazo === DATA_ESPECIFICA ? form.dataPrazo : null,
       }
 
       const res = await fetch("/api/servicos", {
@@ -173,7 +165,7 @@ export default function NovoServicoPage() {
           {/* ── Título ── */}
           <Field label="Título" required>
             <input className={`${inp} ${errors.titulo ? "border-red-400 bg-red-50" : ""}`}
-              value={form.titulo} onChange={e => set("titulo", e.target.value)}
+              value={form.titulo} maxLength={200} onChange={e => set("titulo", e.target.value)}
               placeholder="Ex: Costura de jeans, Fornecimento de tecido..." />
             {errors.titulo && <p className="text-xs text-red-500">{errors.titulo}</p>}
           </Field>
@@ -188,15 +180,19 @@ export default function NovoServicoPage() {
 
           {/* ── Categoria ── */}
           <Field label="Categoria do Serviço">
-            <input className={inp} value={form.categoriaServico}
+            <input className={inp} value={form.categoriaServico} list="categorias-existentes" maxLength={100}
               onChange={e => set("categoriaServico", e.target.value)}
               placeholder="Ex: Costura, Bordado, Malharia..." />
+            <datalist id="categorias-existentes">
+              {categorias.map(c => <option key={c} value={c} />)}
+            </datalist>
+            <p className="text-xs text-gray-400">Escolha uma categoria da lista ou digite uma nova.</p>
           </Field>
 
           {/* ── Tipo de Cobrança ── */}
           <Field label="Tipo de Cobrança" required>
             <div className="flex gap-3">
-              {COBRANCA_TIPO.map(({ value, label }) => (
+              {COBRANCA_OPCOES.map(({ value, label }) => (
                 <button key={value} type="button"
                   onClick={() => set("tipoCobranca", String(value))}
                   className={`flex-1 h-[44px] rounded-[20px] border-2 text-sm font-semibold transition-all ${
@@ -228,7 +224,7 @@ export default function NovoServicoPage() {
             <label className="text-sm font-semibold text-gray-700">Localização</label>
             <div className="flex gap-2">
               <input className={`${inp} flex-1`} value={form.cidade}
-                onChange={e => set("cidade", e.target.value)} placeholder="Cidade" />
+                maxLength={100} onChange={e => set("cidade", e.target.value)} placeholder="Cidade" />
               <select className={`${inp} w-[80px]`} value={form.estado}
                 onChange={e => set("estado", e.target.value)}>
                 <option value="">UF</option>
@@ -238,11 +234,11 @@ export default function NovoServicoPage() {
           </div>
 
           {/* ── Tipo de Prazo ── */}
-          <Field label="Prazo de Entrega">
+          <Field label="Prazo de Entrega" required>
             <div className="grid grid-cols-2 gap-2">
-              {PRAZO_TIPO.map(({ value, label }) => (
+              {PRAZO_OPCOES.map(({ value, label }) => (
                 <button key={value} type="button"
-                  onClick={() => set("tipoPrazo", String(value))}
+                  onClick={() => escolherPrazo(value)}
                   className={`h-[40px] rounded-[10px] border-2 text-sm font-medium transition-all ${
                     form.tipoPrazo === String(value)
                       ? "border-[#7EBEB2] bg-[#e8f5f2] text-[#2a594d]"
@@ -252,38 +248,22 @@ export default function NovoServicoPage() {
                 </button>
               ))}
             </div>
+            {errors.tipoPrazo && <p className="text-xs text-red-500">{errors.tipoPrazo}</p>}
           </Field>
 
           {/* ── Data Prazo (condicional) ── */}
-          {form.tipoPrazo === "3" && (
+          {form.tipoPrazo === DATA_ESPECIFICA && (
             <Field label="Data do Prazo" required>
               <input
                 type="date"
                 className={`${inp} ${errors.dataPrazo ? "border-red-400 bg-red-50" : ""}`}
                 value={form.dataPrazo}
                 onChange={e => set("dataPrazo", e.target.value)}
-                min={new Date().toISOString().split("T")[0]}
+                min={new Date().toLocaleDateString("sv-SE") /* yyyy-MM-dd no fuso do aparelho */}
               />
               {errors.dataPrazo && <p className="text-xs text-red-500">{errors.dataPrazo}</p>}
             </Field>
           )}
-
-          {/* ── Status ── */}
-          <Field label="Status do Serviço">
-            <div className="grid grid-cols-2 gap-2">
-              {STATUS_TIPO.map(({ value, label }) => (
-                <button key={value} type="button"
-                  onClick={() => set("status", String(value))}
-                  className={`h-[40px] rounded-[10px] border-2 text-sm font-medium transition-all ${
-                    form.status === String(value)
-                      ? "border-[#7EBEB2] bg-[#e8f5f2] text-[#2a594d]"
-                      : "border-gray-200 bg-white text-gray-500"
-                  }`}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          </Field>
 
           {/* ── Cadastrar ── */}
           <button

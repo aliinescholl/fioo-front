@@ -1,32 +1,47 @@
-import Image from "next/image"
+import Link from "next/link"
 import { Avatar } from "@/components/atoms/Avatar"
+import { NotaResumo } from "@/components/molecules/Estrelas"
 import { getMediaUrl } from "@/lib/media"
 
 type Props = {
+  id: number
   nome: string
-  localizacao: string
+  localizacao?: string | null
   imagem?: string | null
-  avaliacao: number
+  media?: number | null
+  totalAvaliacoes?: number
+  avaliacao?: number
 }
 
-export function UserCard({ nome, localizacao, imagem, avaliacao }: Props) {
+export function UserCard({
+  id,
+  nome,
+  localizacao,
+  imagem,
+  media,
+  totalAvaliacoes = 0,
+  avaliacao,
+}: Props) {
   const mediaUrl = getMediaUrl(imagem)
-  const displayRating = typeof avaliacao === "number" && avaliacao > 0
-    ? avaliacao.toFixed(1)
-    : avaliacao || "0"
+  const notaFinal = media ?? (typeof avaliacao === "number" ? avaliacao : null)
 
   return (
-    <div
+    <Link
+      href={`/usuarios/${id}`}
       className="
       flex
       items-center
       justify-between
-      w-[317px]
-      h-[79px]
+      gap-2
+      w-full
+      min-h-[79px]
       border
       rounded-[15px]
       px-3
+      py-2
       bg-white
+      hover:border-[#84c4b4]
+      transition-colors
       "
     >
       <div className="flex items-center gap-3 min-w-0">
@@ -37,36 +52,20 @@ export function UserCard({ nome, localizacao, imagem, avaliacao }: Props) {
           shape="rounded"
         />
 
-        <div className="flex flex-col truncate">
+        <div className="flex flex-col min-w-0">
           <span className="font-semibold text-sm truncate">
             {nome}
           </span>
 
           <span className="text-xs text-gray-500 truncate">
-            {localizacao}
+            {localizacao || "Local não informado"}
           </span>
         </div>
       </div>
 
-      <div className="flex flex-col items-center shrink-0 ml-2">
-        <Image
-          src="/star.svg"
-          alt="Avaliação"
-          width={20}
-          height={20}
-        />
-
-        <span
-          className="
-          font-[Abhaya_Libre]
-          font-normal
-          text-[16px]
-          leading-[100%]
-          "
-        >
-          {displayRating}
-        </span>
+      <div className="shrink-0">
+        <NotaResumo media={notaFinal} total={totalAvaliacoes} compacto />
       </div>
-    </div>
+    </Link>
   )
 }

@@ -10,10 +10,10 @@ import { getMediaUrl } from "@/lib/media"
 /** Lê campo suportando camelCase e PascalCase do backend */
 function get<T = string>(obj: unknown, camel: string): T | undefined {
   if (obj == null || typeof obj !== "object") return undefined
-  const record = obj as Record<string, unknown>
-  if (camel in record) return record[camel] as T
+  const o = obj as Record<string, unknown>
+  if (camel in o) return o[camel] as T
   const pascal = camel.charAt(0).toUpperCase() + camel.slice(1)
-  return record[pascal] as T
+  return o[pascal] as T
 }
 
 /** Mapeia o tipo do usuário (número ou string) para "costureiro" | "fornecedor" | "" */

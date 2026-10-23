@@ -1,30 +1,25 @@
 "use client"
 
-import { useState } from "react"
+import type { AbaEncontrar } from "@/types/usuario"
 
 type Props = {
-  onChange: (tab: string) => void
+  ativo: AbaEncontrar
+  onChange: (tab: AbaEncontrar) => void
 }
 
-export function TabsConsulta({ onChange }: Props) {
-
-  const [active, setActive] = useState("fornecedores")
-
-  function select(tab: string) {
-    setActive(tab)
-    onChange(tab)
-  }
-
+export function TabsConsulta({ ativo, onChange }: Props) {
   return (
-    <div className="flex px-2 mt-4">
+    <div className="flex px-2 mt-4" role="tablist">
 
       <button
-        onClick={() => select("fornecedores")}
+        role="tab"
+        aria-selected={ativo === "fornecedores"}
+        onClick={() => onChange("fornecedores")}
         className={`
         w-[181px]
         h-[45px]
         rounded-t-[5px]
-        ${active === "fornecedores"
+        ${ativo === "fornecedores"
           ? "shadow border-b-4 border-[#84c4b4]"
           : "opacity-50"}
         `}
@@ -33,12 +28,14 @@ export function TabsConsulta({ onChange }: Props) {
       </button>
 
       <button
-        onClick={() => select("costureiros")}
+        role="tab"
+        aria-selected={ativo === "costureiros"}
+        onClick={() => onChange("costureiros")}
         className={`
         w-[181px]
         h-[45px]
         rounded-t-[5px]
-        ${active === "costureiros"
+        ${ativo === "costureiros"
           ? "shadow border-b-4 border-[#84c4b4]"
           : "opacity-50"}
         `}

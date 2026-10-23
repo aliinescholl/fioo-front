@@ -50,13 +50,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 })
     }
 
-    const { searchParams } = new URL(request.url)
-    const usuarioId = searchParams.get("usuarioId")
-
+    // Repassa filtros, ordenação e paginação; o usuário vem do token no backend
     const url = new URL(`${API_BASE_URL}/api/servicos`)
-    if (usuarioId) {
-      url.searchParams.set("usuarioId", usuarioId)
-    }
+    url.search = request.nextUrl.search
 
     const response = await fetch(url.toString(), {
       method: "GET",
