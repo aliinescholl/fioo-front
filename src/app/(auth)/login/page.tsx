@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { InputLabel } from "@/components/molecules/InputLabel"
 import { Button } from "@/components/atoms/Button"
 import { Logo } from "@/components/atoms/Logo"
@@ -16,8 +16,7 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
 
-  const { checkEmail, login } = useAuth()
-  const router = useRouter()
+  const { login } = useAuth()
 
   function clearError() {
     if (error) setError("")
@@ -100,9 +99,12 @@ export default function LoginPage() {
               autoComplete="current-password"
               autoFocus
             />
-            <a className="text-xs text-right text-[var(--color-primary-dark)] cursor-pointer hover:underline">
+            <Link
+              href="/esqueci-senha"
+              className="text-xs text-right text-[var(--color-primary-dark)] cursor-pointer hover:underline"
+            >
               Esqueceu a senha?
-            </a>
+            </Link>
           </>
         )}
 
@@ -122,6 +124,16 @@ export default function LoginPage() {
               ? "Continuar"
               : "Entrar"}
         </Button>
+
+        <p className="text-xs text-center text-gray-500 mt-2">
+          Não tem cadastro?{" "}
+          <Link
+            href={email.trim() ? `/cadastro?email=${encodeURIComponent(email.trim())}` : "/cadastro"}
+            className="text-[var(--color-primary-dark)] font-semibold hover:underline"
+          >
+            Cadastre-se
+          </Link>
+        </p>
 
       </div>
     </main>

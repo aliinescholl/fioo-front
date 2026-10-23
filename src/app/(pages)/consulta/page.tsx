@@ -8,10 +8,12 @@ import { UserCard } from "@/components/organisms/UserCard"
 import { FilterTag } from "@/components/molecules/FilterTag"
 
 type Usuario = {
-  foto: string | null
+  foto?: string | null
+  fotoPerfilUrl?: string | null
   nome: string
   localizacao: string
-  mediaEstrela: string
+  mediaEstrela?: string | number
+  media?: string | number
 }
 
 export default function ConsultaPage() {
@@ -20,28 +22,39 @@ export default function ConsultaPage() {
   const [carregando, setCarregando] = useState(true)
   const [search, setSearch] = useState("")
 
-  useEffect(() => {
+  function handleTabChange(novaTab: string) {
+    setTab(novaTab)
     setCarregando(true)
     setLista([])
-    setSearch("") // limpa a busca ao trocar de aba
+    setSearch("")
+  }
 
+  useEffect(() => {
+    let active = true
     const rota = tab === "fornecedores" ? "/api/usuarios/fornecedores" : "/api/usuarios/costureiros"
 
     fetch(rota)
       .then((res) => res.json())
       .then((data: Usuario[]) => {
-        setLista(data)
+        if (!active) return
+        setLista(Array.isArray(data) ? data : [])
       })
       .catch(() => {
+        if (!active) return
         setLista([])
       })
       .finally(() => {
+        if (!active) return
         setCarregando(false)
       })
+
+    return () => {
+      active = false
+    }
   }, [tab])
 
   const listaFiltrada = lista.filter(u =>
-    u.nome.toLowerCase().includes(search.toLowerCase())
+    u.nome?.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
@@ -51,7 +64,7 @@ export default function ConsultaPage() {
 
         <FilterBar />
 
-        <TabsConsulta onChange={setTab} />
+        <TabsConsulta onChange={handleTabChange} />
 
         <div className="flex justify-center mt-2">
           <SearchInput value={search} onChange={setSearch} />
@@ -76,8 +89,8 @@ export default function ConsultaPage() {
               key={index}
               nome={user.nome}
               localizacao={user.localizacao}
-              imagem={user.foto ?? "/user.png"}
-              avaliacao={parseFloat(user.mediaEstrela) || 0}
+              imagem={user.foto || user.fotoPerfilUrl || null}
+              avaliacao={parseFloat(String(user.mediaEstrela || user.media || 0)) || 0}
             />
           ))}
 
