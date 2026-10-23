@@ -88,10 +88,13 @@ function TipoContaToggle({
 function CadastroForm() {
   const searchParams = useSearchParams()
   const emailFromQuery = searchParams.get("email") ?? ""
+  const tipoFromQuery = searchParams.get("tipo")
+  const initialTipo: TipoConta = tipoFromQuery === "fornecedor" ? "fornecedor" : "costureiro"
+
   const { register } = useAuth()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState("")
-  const [tipoConta, setTipoConta] = useState<TipoConta>("costureiro")
+  const [tipoConta, setTipoConta] = useState<TipoConta>(initialTipo)
 
   const ehCostureiro = tipoConta === "costureiro"
 

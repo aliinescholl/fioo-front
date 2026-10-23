@@ -226,7 +226,7 @@ function Encontrar() {
               id={u.id}
               nome={u.nome}
               localizacao={u.localizacao}
-              imagem={u.foto ?? "/user.png"}
+              imagem={u.foto}
               media={u.media}
               totalAvaliacoes={u.totalAvaliacoes}
             />

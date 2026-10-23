@@ -100,7 +100,7 @@ export default function LoginPage() {
               autoFocus
             />
             <Link
-              href={`/esqueceu-senha${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`}
+              href={`/esqueci-senha${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`}
               className="text-xs text-right text-[var(--color-primary-dark)] hover:underline"
             >
               Esqueceu a senha?
@@ -125,9 +125,12 @@ export default function LoginPage() {
               : "Entrar"}
         </Button>
 
-        <p className="text-xs text-center text-gray-500">
-          Ainda não possui uma conta?{" "}
-          <Link href="/cadastro" className="text-[var(--color-primary-dark)] font-semibold hover:underline">
+        <p className="text-xs text-center text-gray-500 mt-2">
+          Não tem cadastro?{" "}
+          <Link
+            href={email.trim() ? `/cadastro?email=${encodeURIComponent(email.trim())}` : "/cadastro"}
+            className="text-[var(--color-primary-dark)] font-semibold hover:underline"
+          >
             Cadastre-se
           </Link>
         </p>

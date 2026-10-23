@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { useAuth } from "@/context/AuthContext"
 import { validateCPF, validateCNPJ, formatCpfCnpj } from "@/lib/validation"
+import { getMediaUrl } from "@/lib/media"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -157,7 +158,7 @@ export default function PerfilPage() {
 
         // Foto de perfil existente
         const fotoUrl = get<string>(u, "fotoPerfilUrl")
-        if (fotoUrl) setFotoPreview(fotoUrl)
+        if (fotoUrl) setFotoPreview(getMediaUrl(fotoUrl))
 
       } catch {
         // Fallback silencioso
@@ -185,9 +186,29 @@ export default function PerfilPage() {
     setForm(p => ({ ...p, [name]: value }))
   }
 
+  const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
+  const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2 MB
+
   function handleFoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+
+    e.target.value = ""
+
+    const extension = file.name.split(".").pop()?.toLowerCase()
+    const validExtension = ["jpg", "jpeg", "png", "webp"].includes(extension || "")
+    const validType = ALLOWED_IMAGE_TYPES.includes(file.type) || validExtension
+
+    if (!validType) {
+      showToast("Formato inválido. Use JPG, PNG ou WEBP.")
+      return
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      showToast("A imagem deve ter no máximo 2 MB.")
+      return
+    }
+
     setFotoFile(file)
     const reader = new FileReader()
     reader.onload = ev => setFotoPreview(ev.target?.result as string)
@@ -311,7 +332,7 @@ export default function PerfilPage() {
             <button type="button" onClick={() => fotoRef.current?.click()}
               className="relative w-[100px] h-[100px] rounded-full bg-[#e8f5f2] border-2 border-[#7EBEB2] flex items-center justify-center overflow-hidden group">
               {fotoPreview
-                ? <img src={fotoPreview} alt="Foto" className="w-full h-full object-cover" />
+                ? <img src={getMediaUrl(fotoPreview) || fotoPreview} alt="Foto" className="w-full h-full object-cover" />
                 : <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#7EBEB2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
                 </svg>}
@@ -322,7 +343,7 @@ export default function PerfilPage() {
                 </svg>
               </div>
             </button>
-            <input ref={fotoRef} type="file" accept="image/*" className="hidden" onChange={handleFoto} />
+            <input ref={fotoRef} type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" className="hidden" onChange={handleFoto} />
             <p className="text-xs text-gray-400">Toque para alterar a foto</p>
           </div>
 
