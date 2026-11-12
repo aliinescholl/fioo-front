@@ -4,7 +4,15 @@ import { isTokenExpired } from "@/lib/jwt"
 
 const COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? "fioo_token"
 
-const PUBLIC_ROUTES = ["/", "/login", "/cadastro"]
+const PUBLIC_ROUTES = [
+  "/",
+  "/login",
+  "/cadastro",
+  "/esqueci-senha",
+  "/redefinir-senha",
+  "/esqueceu-senha",
+  "/recuperar-senha",
+]
 const PROTECTED_PREFIXES = ["/consulta", "/perfil", "/servicos", "/usuarios"]
 
 // Next.js 16: a função DEVE se chamar "proxy" (ou ser default export)

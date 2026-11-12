@@ -100,8 +100,8 @@ export default function LoginPage() {
               autoFocus
             />
             <Link
-              href="/esqueci-senha"
-              className="text-xs text-right text-[var(--color-primary-dark)] cursor-pointer hover:underline"
+              href={`/esqueci-senha${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`}
+              className="text-xs text-right text-[var(--color-primary-dark)] hover:underline"
             >
               Esqueceu a senha?
             </Link>

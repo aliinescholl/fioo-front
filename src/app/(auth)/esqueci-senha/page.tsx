@@ -1,13 +1,16 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { InputLabel } from "@/components/molecules/InputLabel"
 import { Button } from "@/components/atoms/Button"
 import { Logo } from "@/components/atoms/Logo"
 
-export default function EsqueciSenhaPage() {
-  const [email, setEmail] = useState("")
+function EsqueciSenhaForm() {
+  const searchParams = useSearchParams()
+  const initialEmail = searchParams.get("email") ?? ""
+  const [email, setEmail] = useState(initialEmail)
   const [error, setError] = useState("")
   const [enviado, setEnviado] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -113,5 +116,13 @@ export default function EsqueciSenhaPage() {
         )}
       </div>
     </main>
+  )
+}
+
+export default function EsqueciSenhaPage() {
+  return (
+    <Suspense>
+      <EsqueciSenhaForm />
+    </Suspense>
   )
 }

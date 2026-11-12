@@ -4,6 +4,7 @@ type Props = {
   disabled?: boolean
   type?: "button" | "submit" | "reset"
   variant?: "primary" | "danger" | "ghost"
+  className?: string
 }
 
 export function Button({
@@ -12,6 +13,7 @@ export function Button({
   disabled,
   type = "button",
   variant = "primary",
+  className = "",
 }: Props) {
   const variants = {
     primary: `
@@ -55,6 +57,7 @@ export function Button({
         disabled:opacity-50
         disabled:cursor-not-allowed
         ${variants[variant]}
+        ${className}
       `}
     >
       {children}

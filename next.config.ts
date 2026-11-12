@@ -24,6 +24,20 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: "/recuperar-senha",
+        destination: "/esqueci-senha",
+        permanent: true,
+      },
+      {
+        source: "/esqueceu-senha",
+        destination: "/esqueci-senha",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
