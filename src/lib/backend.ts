@@ -20,7 +20,15 @@ async function extractError(res: Response, fallback: string): Promise<string> {
 export async function encaminhar(
   request: NextRequest,
   caminho: string,
-  { method = "GET", erroPadrao }: { method?: string; erroPadrao: string }
+  {
+    method = "GET",
+    erroPadrao,
+    transformar,
+  }: {
+    method?: string
+    erroPadrao: string
+    transformar?: (dados: unknown) => unknown
+  }
 ) {
   try {
     const token = request.cookies.get(COOKIE_NAME)?.value
@@ -45,7 +53,9 @@ export async function encaminhar(
     }
 
     if (response.status === 204) return NextResponse.json({ success: true })
-    return NextResponse.json(await response.json(), { status: response.status })
+    const json = await response.json()
+    const payload = transformar ? transformar(json) : json
+    return NextResponse.json(payload, { status: response.status })
   } catch {
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }

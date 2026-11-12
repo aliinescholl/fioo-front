@@ -44,7 +44,7 @@ export default function PerfilPublicoPage() {
     return (
       <main className="flex flex-col items-center pt-10 px-4 gap-3">
         <p className="text-sm font-semibold text-red-600">{erro}</p>
-        <button type="button" onClick={() => router.back()} className="h-[44px] px-4 rounded-[12px] border border-gray-200 text-sm font-semibold">
+        <button type="button" onClick={() => router.back()} className="h-[44px] px-4 rounded-[12px] border border-[#d5e6e2] bg-white hover:bg-[#f4f9f8] text-sm font-semibold">
           Voltar
         </button>
       </main>
@@ -71,11 +71,11 @@ export default function PerfilPublicoPage() {
   return (
     <main className="flex flex-col items-center pb-28">
       <div className="w-full max-w-[480px] px-4 flex flex-col gap-4 pt-4">
-        <button type="button" onClick={() => router.back()} className="self-start h-[40px] text-sm font-semibold text-[#2a594d]">
+        <button type="button" onClick={() => router.back()} className="self-start h-[40px] text-sm font-semibold text-[#2a594d] hover:underline">
           ← Voltar
         </button>
 
-        <section className="flex items-center gap-4 p-4 border border-gray-100 rounded-[15px] bg-white shadow-sm">
+        <section className="flex items-center gap-4 p-4 border border-[#e2ece9] rounded-[16px] bg-white shadow-xs">
           {perfil.fotoPerfilUrl ? (
             <Image
               src={perfil.fotoPerfilUrl}
@@ -83,7 +83,7 @@ export default function PerfilPublicoPage() {
               width={64}
               height={64}
               unoptimized
-              className="w-[64px] h-[64px] shrink-0 rounded-full object-cover"
+              className="w-[64px] h-[64px] shrink-0 rounded-full object-cover border border-[#84c4b4]"
             />
           ) : (
             <div className="w-[64px] h-[64px] shrink-0 rounded-full bg-[#7EBEB2] flex items-center justify-center text-white text-2xl font-bold">
@@ -103,7 +103,7 @@ export default function PerfilPublicoPage() {
           </div>
         </section>
 
-        <section className="flex flex-col p-4 border border-gray-100 rounded-[15px] bg-white">
+        <section className="flex flex-col p-4 border border-[#e2ece9] rounded-[16px] bg-white shadow-xs">
           <h3 className="text-base font-bold text-gray-800 mb-1">Avaliações</h3>
           {resumos.map(r => <LinhaResumo key={r.rotulo} rotulo={r.rotulo} resumo={r.resumo} />)}
         </section>
@@ -113,7 +113,7 @@ export default function PerfilPublicoPage() {
             <p className="text-sm text-gray-500 text-center py-6">Ainda não há avaliações.</p>
           )}
           {avaliacoes?.itens.map(a => (
-            <article key={a.id} className="flex flex-col gap-1.5 p-4 border border-gray-100 rounded-[15px] bg-white">
+            <article key={a.id} className="flex flex-col gap-1.5 p-4 border border-[#e2ece9] rounded-[16px] bg-white shadow-xs">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-semibold text-gray-800 truncate">{a.avaliador.nome}</span>
                 <NotaResumo media={a.nota} total={1} compacto />

@@ -5,17 +5,32 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import Image from "next/image"
 import Link from "next/link"
+import { Select } from "@/components/atoms/Select"
 import { FilterTag } from "@/components/molecules/FilterTag"
 import { AvaliacaoModal } from "@/components/organisms/AvaliacaoModal"
 import { useAvaliacoesFeitas } from "@/lib/useAvaliacoesFeitas"
 import { useCategorias } from "@/lib/useCategorias"
+import { formatTelefone, formatWhatsAppUrl } from "@/lib/validation"
 import { PAPEL } from "@/types/avaliacao"
 import { OpcoesFiltro, PainelFiltros } from "@/components/organisms/PainelFiltros"
 import { ESTADOS_BR } from "@/data/estados"
 import {
-  COBRANCA_OPCOES, FILTROS_SERVICOS_VAZIOS, ORDENACAO_SERVICOS, PRAZO_OPCOES, SERVICO_STATUS, STATUS_SERVICO_CONFIG,
-  contarFiltrosServicos, filtrosServicosParaQuery, getCobrancaLabel, getPrazoLabel, lerFiltrosServicos, normalizarValor,
-  type FiltrosServicos, type PaginaServicos, type Servico, type ServicoStatus,
+  COBRANCA_OPCOES,
+  FILTROS_SERVICOS_VAZIOS,
+  ORDENACAO_SERVICOS,
+  PRAZO_OPCOES,
+  SERVICO_STATUS,
+  STATUS_SERVICO_CONFIG,
+  contarFiltrosServicos,
+  filtrosServicosParaQuery,
+  getCobrancaLabel,
+  getPrazoLabel,
+  lerFiltrosServicos,
+  normalizarValor,
+  type FiltrosServicos,
+  type PaginaServicos,
+  type Servico,
+  type ServicoStatus,
 } from "@/types/servico"
 
 const STATUS_OPCOES = Object.entries(STATUS_SERVICO_CONFIG).map(([value, cfg]) => ({
@@ -23,14 +38,25 @@ const STATUS_OPCOES = Object.entries(STATUS_SERVICO_CONFIG).map(([value, cfg]) =
   label: cfg.label,
 }))
 
-const inp = "w-full h-[44px] px-3 rounded-[10px] border border-gray-200 outline-none focus:border-[#7EBEB2] text-sm bg-white"
+const UF_OPCOES = [
+  { value: "", label: "UF" },
+  ...ESTADOS_BR.map(uf => ({ value: uf, label: uf })),
+]
+
+const inp =
+  "h-[44px] px-3.5 rounded-[12px] border border-[#d5e6e2] hover:border-[#84c4b4] outline-none focus:border-[#7EBEB2] focus:ring-2 focus:ring-[#7EBEB2]/20 text-sm text-gray-700 placeholder:text-gray-400 bg-white transition-all"
 
 interface Candidatura {
   id: number
   status: number // 0: Pendente, 1: Aceita, 2: Recusada, 3: Cancelada
   dataCandidatura: string
+  telefoneFornecedor?: string | null
   servico: {
     id: number
+    telefoneFornecedor?: string | null
+    usuario?: {
+      telefone?: string | null
+    }
   }
 }
 
@@ -41,7 +67,7 @@ function Toast({ visible, error, message }: { visible: boolean; error?: string; 
       className={`
         fixed top-4 right-4 z-50
         flex items-center gap-2
-        px-4 py-3 rounded-xl shadow-lg
+        px-4 py-3 rounded-[12px] shadow-lg
         border transition-all duration-300
         ${visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-3 pointer-events-none"}
         ${isError
@@ -112,13 +138,29 @@ function ServicosFeed() {
   const [toast, setToast] = useState<{ visible: boolean; error?: string; message?: string }>({ visible: false })
   const [isPending, startTransition] = useTransition()
 
-  // Mapeamento de servicoId para status de candidatura
+  // Mapeamento de servicoId para status de candidatura e telefone de candidatura aprovada
   const appliedStatusMap = new Map<number, number>()
+  const approvedPhoneMap = new Map<number, string>()
   candidaturas.forEach(c => {
     if (c.servico) {
       appliedStatusMap.set(c.servico.id, c.status)
+      if (c.status === 1) {
+        const tel = c.servico.usuario?.telefone ?? c.servico.telefoneFornecedor ?? c.telefoneFornecedor
+        if (tel) approvedPhoneMap.set(c.servico.id, tel)
+      }
     }
   })
+
+  const categoriaOpcoes = useMemo(() => {
+    const lista = [...categorias]
+    if (rascunho.categoria && !lista.includes(rascunho.categoria)) {
+      lista.unshift(rascunho.categoria)
+    }
+    return [
+      { value: "", label: "Todos" },
+      ...lista.map(c => ({ value: c, label: c })),
+    ]
+  }, [categorias, rascunho.categoria])
 
   const irParaFiltros = useCallback((novos: FiltrosServicos) => {
     const qs = filtrosServicosParaQuery(novos).toString()
@@ -238,11 +280,7 @@ function ServicosFeed() {
         }
 
         showToast("Candidatura enviada com sucesso!")
-        
-        // Atualiza a lista de candidaturas do estado para desabilitar o botão imediatamente
         await carregarCandidaturas()
-        
-        // Fecha o modal de detalhes
         setSelectedServico(null)
       } catch {
         showToast(undefined, "Erro ao enviar candidatura")
@@ -254,31 +292,44 @@ function ServicosFeed() {
     switch (status) {
       case 0:
         return (
-          <span className="text-[12px] font-semibold text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-full border border-yellow-200">
+          <span className="text-[12px] font-semibold text-yellow-700 bg-yellow-50 px-2.5 py-0.5 rounded-full border border-yellow-200">
             Pendente
           </span>
         )
       case 1:
         return (
-          <span className="text-[12px] font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+          <span className="text-[12px] font-semibold text-green-700 bg-green-50 px-2.5 py-0.5 rounded-full border border-green-200">
             Aceita
           </span>
         )
       case 2:
         return (
-          <span className="text-[12px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
+          <span className="text-[12px] font-semibold text-red-600 bg-red-50 px-2.5 py-0.5 rounded-full border border-red-200">
             Recusada
           </span>
         )
       case 3:
         return (
-          <span className="text-[12px] font-semibold text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-200">
+          <span className="text-[12px] font-semibold text-gray-500 bg-gray-50 px-2.5 py-0.5 rounded-full border border-gray-200">
             Cancelada
           </span>
         )
       default:
         return null
     }
+  }
+
+  function isCandidatoAprovado(s: Servico): boolean {
+    const statusCand = appliedStatusMap.get(s.id)
+    const vinculadoAoUsuario = Boolean(user?.id && s.costureiroVinculado?.id != null && Number(s.costureiroVinculado.id) === Number(user.id))
+    return statusCand === 1 || vinculadoAoUsuario
+  }
+
+  function obterTelefoneAprovado(s: Servico): string | null {
+    if (!isCandidatoAprovado(s)) return null
+    const bruto = s.usuario?.telefone ?? s.telefoneFornecedor ?? approvedPhoneMap.get(s.id) ?? null
+    if (!bruto) return null
+    return formatTelefone(bruto) || bruto
   }
 
   if (!user) {
@@ -299,12 +350,12 @@ function ServicosFeed() {
           </div>
 
           {/* Barra de Pesquisa */}
-          <div className="flex items-center border-[1.5px] border-[#7EBEB2] rounded-[10px] h-[44px] w-full overflow-hidden bg-white">
+          <div className="flex items-center border border-[#84c4b4] focus-within:border-[#68b0a0] focus-within:ring-2 focus-within:ring-[#7EBEB2]/20 rounded-[12px] h-[44px] w-full overflow-hidden bg-white transition-all">
             <input
               type="search"
               aria-label="Pesquisar por nome do serviço"
               placeholder="Pesquisar por nome do serviço..."
-              className="flex-1 h-full px-3 outline-none text-sm text-gray-700"
+              className="flex-1 h-full px-3.5 outline-none text-sm text-gray-700 placeholder:text-gray-400 bg-transparent"
               value={busca}
               onChange={e => setBusca(e.target.value)}
             />
@@ -327,23 +378,22 @@ function ServicosFeed() {
           >
             <div className="flex flex-col gap-1.5">
               <span className="text-sm font-semibold text-gray-700">Localização</span>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 <input
                   aria-label="Cidade"
                   placeholder="Cidade"
-                  className={`${inp} flex-1`}
+                  className={`${inp} flex-1 min-w-0`}
                   value={rascunho.cidade}
                   onChange={e => setRascunho(r => ({ ...r, cidade: e.target.value }))}
                 />
-                <select
-                  aria-label="Estado (UF)"
-                  className={`${inp} w-[90px]`}
+                <Select
+                  ariaLabel="Estado (UF)"
+                  className="w-[96px] shrink-0"
                   value={rascunho.uf}
-                  onChange={e => setRascunho(r => ({ ...r, uf: e.target.value }))}
-                >
-                  <option value="">UF</option>
-                  {ESTADOS_BR.map(uf => <option key={uf} value={uf}>{uf}</option>)}
-                </select>
+                  onChange={uf => setRascunho(r => ({ ...r, uf }))}
+                  options={UF_OPCOES}
+                  placeholder="UF"
+                />
               </div>
             </div>
 
@@ -354,7 +404,7 @@ function ServicosFeed() {
                   aria-label="Valor mínimo"
                   placeholder="Mínimo"
                   inputMode="decimal"
-                  className={`${inp} flex-1 ${valorInvalido ? "border-red-400 bg-red-50" : ""}`}
+                  className={`${inp} flex-1 min-w-0 ${valorInvalido ? "border-red-300 bg-red-50" : ""}`}
                   value={rascunho.valorMin}
                   onChange={e => setRascunho(r => ({ ...r, valorMin: e.target.value }))}
                 />
@@ -363,7 +413,7 @@ function ServicosFeed() {
                   aria-label="Valor máximo"
                   placeholder="Máximo"
                   inputMode="decimal"
-                  className={`${inp} flex-1 ${valorInvalido ? "border-red-400 bg-red-50" : ""}`}
+                  className={`${inp} flex-1 min-w-0 ${valorInvalido ? "border-red-300 bg-red-50" : ""}`}
                   value={rascunho.valorMax}
                   onChange={e => setRascunho(r => ({ ...r, valorMax: e.target.value }))}
                 />
@@ -387,18 +437,14 @@ function ServicosFeed() {
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor="filtro-categoria" className="text-sm font-semibold text-gray-700">Serviço aplicado</label>
-              <select
+              <Select
                 id="filtro-categoria"
-                className={inp}
+                ariaLabel="Serviço aplicado"
                 value={rascunho.categoria}
-                onChange={e => setRascunho(r => ({ ...r, categoria: e.target.value }))}
-              >
-                <option value="">Todos</option>
-                {rascunho.categoria && !categorias.includes(rascunho.categoria) && (
-                  <option value={rascunho.categoria}>{rascunho.categoria}</option>
-                )}
-                {categorias.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+                onChange={categoria => setRascunho(r => ({ ...r, categoria }))}
+                options={categoriaOpcoes}
+                placeholder="Todos"
+              />
             </div>
 
             <OpcoesFiltro
@@ -424,29 +470,29 @@ function ServicosFeed() {
               <span className="text-xs text-gray-400">Carregando serviços...</span>
             </div>
           ) : error ? (
-            <div className="flex flex-col items-center text-center py-10 gap-3 border border-red-100 bg-red-50 rounded-[15px] p-4">
+            <div className="flex flex-col items-center text-center py-10 gap-3 border border-red-200 bg-red-50 rounded-[16px] p-4">
               <span className="text-sm font-semibold text-red-600">Erro: {error}</span>
               <button
                 onClick={() => carregarServicos(1)}
-                className="px-4 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-lg text-xs transition-colors"
+                className="px-4 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-[10px] text-xs transition-colors"
               >
                 Tentar Novamente
               </button>
             </div>
           ) : servicos.length === 0 && (quantidadeFiltros > 0 || filtros.busca) ? (
-            <div className="flex flex-col items-center text-center py-12 gap-3 border border-dashed border-gray-200 rounded-[15px] bg-white p-4">
+            <div className="flex flex-col items-center text-center py-12 gap-3 border border-dashed border-[#cfe5e0] rounded-[16px] bg-white p-4">
               <Image src="/machine.svg" alt="" width={40} height={40} className="opacity-40" />
               <span className="text-sm font-semibold text-gray-600">Nenhum serviço encontrado com esses filtros</span>
               <button
                 type="button"
                 onClick={limparFiltros}
-                className="h-[44px] px-4 rounded-[12px] border-2 border-[#2a594d] bg-[#7EBEB2] text-[#2a594d] text-sm font-bold"
+                className="h-[44px] px-4 rounded-[12px] border border-[#68b0a0] bg-[#7EBEB2] hover:bg-[#6eb0a3] text-[#2a594d] text-sm font-bold transition-colors"
               >
                 Limpar filtros
               </button>
             </div>
           ) : servicos.length === 0 ? (
-            <div className="flex flex-col items-center text-center py-12 gap-2 border border-dashed border-gray-200 rounded-[15px] bg-white p-4">
+            <div className="flex flex-col items-center text-center py-12 gap-2 border border-dashed border-[#cfe5e0] rounded-[16px] bg-white p-4">
               <Image src="/machine.svg" alt="Nenhum serviço" width={40} height={40} className="opacity-40" />
               <span className="text-sm font-semibold text-gray-500">Nenhum serviço disponível</span>
               <p className="text-xs text-gray-400">No momento não há serviços publicados por outros fornecedores.</p>
@@ -456,27 +502,32 @@ function ServicosFeed() {
               {servicos.map(s => {
                 const isApplied = appliedStatusMap.has(s.id)
                 const candidaturaStatus = appliedStatusMap.get(s.id)
+                const aprovado = isCandidatoAprovado(s)
+                const telefoneAprovado = obterTelefoneAprovado(s)
+                const podeAvaliarNoCard = aprovado && s.status === SERVICO_STATUS.Concluido
 
                 return (
                   <div
                     key={s.id}
                     onClick={() => setSelectedServico(s)}
-                    className="flex flex-col p-4 border border-gray-100 bg-white rounded-[15px] shadow-sm hover:shadow-md hover:border-gray-200 transition-all cursor-pointer gap-2.5 relative group"
+                    className="flex flex-col p-4 border border-[#e2ece9] bg-white rounded-[16px] shadow-xs hover:shadow-sm hover:border-[#84c4b4] transition-all cursor-pointer gap-2.5 relative group"
                   >
                     {/* Linha superior: Categoria e Status/Ver detalhes */}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-[11px] font-semibold tracking-wide uppercase text-[#2a594d] bg-[#e8f5f2] px-2 py-0.5 rounded-full">
+                        <span className="text-[11px] font-semibold tracking-wide uppercase text-[#2a594d] bg-[#e8f5f2] border border-[#cfe5e0] px-2.5 py-0.5 rounded-full">
                           {s.categoriaServico || "Geral"}
                         </span>
-                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${STATUS_SERVICO_CONFIG[s.status].className}`}>
+                        <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${STATUS_SERVICO_CONFIG[s.status].className}`}>
                           {STATUS_SERVICO_CONFIG[s.status].label}
                         </span>
                       </div>
                       {isApplied && candidaturaStatus !== undefined ? (
                         getCandidaturaStatusBadge(candidaturaStatus)
+                      ) : aprovado ? (
+                        getCandidaturaStatusBadge(1)
                       ) : (
-                        <span className="text-[11px] font-medium text-gray-400 group-hover:text-[#7EBEB2] transition-colors flex items-center gap-1">
+                        <span className="text-[11px] font-medium text-gray-400 group-hover:text-[#2a594d] transition-colors flex items-center gap-1">
                           Ver Detalhes
                           <svg className="w-3 h-3 transform group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
                         </span>
@@ -489,7 +540,7 @@ function ServicosFeed() {
                     </h3>
 
                     {/* Informações chaves */}
-                    <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-xs text-gray-500 pt-1 border-t border-gray-50">
+                    <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-xs text-gray-500 pt-1.5 border-t border-[#eef5f3]">
                       <div className="flex items-center gap-1.5">
                         <span className="text-gray-400 font-bold">R$</span>
                         <span>{s.valor ? `${s.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "A combinar"} ({getCobrancaLabel(s.tipoCobranca)})</span>
@@ -504,15 +555,54 @@ function ServicosFeed() {
                       </div>
                     </div>
 
-                    {/* Fornecedor */}
-                    <div className="flex items-center gap-2 pt-2 mt-1 border-t border-gray-50">
-                      <div className="w-[24px] h-[24px] rounded-full bg-[#7EBEB2] flex items-center justify-center text-white text-xs font-bold">
-                        {s.usuario.nome.charAt(0).toUpperCase()}
+                    {/* Contato via WhatsApp liberado exclusivamente para o costureiro aprovado */}
+                    {aprovado && telefoneAprovado && (
+                      <a
+                        href={formatWhatsAppUrl(telefoneAprovado)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        className="flex items-center justify-center gap-2 w-full py-2.5 px-3 mt-0.5 rounded-[12px] border border-[#84c4b4] bg-[#e8f5f2] hover:bg-[#d7eee9] text-[#2a594d] text-xs font-bold transition-colors"
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                        </svg>
+                        <span>
+                          Continuar conversa com <span className="underline">{telefoneAprovado}</span>
+                        </span>
+                      </a>
+                    )}
+
+                    {/* Fornecedor + Ação de Avaliação direta no cartão de serviço concluído */}
+                    <div className="flex items-center justify-between gap-2 pt-2 mt-0.5 border-t border-[#eef5f3]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-[26px] h-[26px] shrink-0 rounded-full bg-[#7EBEB2] flex items-center justify-center text-white text-xs font-bold">
+                          {s.usuario.nome.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-semibold text-gray-700 leading-none truncate">{s.usuario.nome}</span>
+                          <span className="text-[10px] text-gray-400 truncate">@{s.usuario.nomeUsuario}</span>
+                        </div>
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-[11px] font-semibold text-gray-700 leading-none">{s.usuario.nome}</span>
-                        <span className="text-[9px] text-gray-400">@{s.usuario.nomeUsuario}</span>
-                      </div>
+
+                      {podeAvaliarNoCard && (
+                        feitas.has(s.id) ? (
+                          <span className="shrink-0 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
+                            Avaliação enviada
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={e => {
+                              e.stopPropagation()
+                              setAvaliando(s)
+                            }}
+                            className="shrink-0 h-[38px] px-3 rounded-[10px] border border-[#68b0a0] bg-[#7EBEB2] hover:bg-[#6eb0a3] text-[#2a594d] text-xs font-bold transition-colors"
+                          >
+                            Avaliar fornecedor
+                          </button>
+                        )
+                      )}
                     </div>
                   </div>
                 )
@@ -523,7 +613,7 @@ function ServicosFeed() {
                   type="button"
                   onClick={() => carregarServicos(pagina + 1)}
                   disabled={carregandoMais}
-                  className="h-[44px] rounded-[15px] border-2 border-[#7EBEB2] bg-white text-[#2a594d] text-sm font-bold disabled:opacity-60"
+                  className="h-[44px] rounded-[16px] border border-[#84c4b4] bg-white hover:bg-[#f4f9f8] text-[#2a594d] text-sm font-bold transition-colors disabled:opacity-60"
                 >
                   {carregandoMais ? "Carregando..." : "Carregar mais serviços"}
                 </button>
@@ -537,12 +627,12 @@ function ServicosFeed() {
       {/* Modal de Detalhes */}
       {selectedServico && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-xs animate-[fadeIn_0.15s_ease-out]">
-          <div className="bg-white rounded-[20px] max-w-[440px] w-full p-5 flex flex-col gap-4 border border-gray-100 shadow-2xl relative">
+          <div className="bg-white rounded-[20px] max-w-[440px] w-full p-5 flex flex-col gap-4 border border-[#e2ece9] shadow-2xl relative">
             
             {/* Header Modal */}
             <div className="flex justify-between items-start">
               <div className="flex flex-col gap-1">
-                <span className="text-[11px] font-bold uppercase tracking-wide text-[#2a594d] bg-[#e8f5f2] px-2 py-0.5 rounded-full w-max">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-[#2a594d] bg-[#e8f5f2] border border-[#cfe5e0] px-2.5 py-0.5 rounded-full w-max">
                   {selectedServico.categoriaServico || "Geral"}
                 </span>
                 <h3 className="text-lg font-bold text-gray-800 mt-1 leading-snug">
@@ -551,7 +641,7 @@ function ServicosFeed() {
               </div>
               <button
                 onClick={() => setSelectedServico(null)}
-                className="w-7 h-7 rounded-full bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+                className="w-8 h-8 rounded-full bg-gray-50 hover:bg-gray-100 border border-[#e2ece9] flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
@@ -560,7 +650,7 @@ function ServicosFeed() {
             {/* Seção Fornecedor (abre o perfil público) */}
             <Link
               href={`/usuarios/${selectedServico.usuario.id}`}
-              className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-[12px] border border-gray-100"
+              className="flex items-center gap-3 p-3 bg-[#f8fbfa] hover:bg-[#eef6f4] rounded-[12px] border border-[#e2ece9] transition-colors"
             >
               <div className="w-[36px] h-[36px] rounded-full bg-[#7EBEB2] flex items-center justify-center text-white text-base font-bold">
                 {selectedServico.usuario.nome.charAt(0).toUpperCase()}
@@ -578,14 +668,14 @@ function ServicosFeed() {
             {/* Detalhes do Serviço */}
             <div className="flex flex-col gap-2.5">
               <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="flex flex-col gap-0.5 border border-gray-100 p-2.5 rounded-[10px]">
+                <div className="flex flex-col gap-0.5 border border-[#e2ece9] p-2.5 rounded-[12px]">
                   <span className="text-gray-400 font-semibold text-[10px]">VALOR</span>
                   <span className="font-bold text-gray-700">
                     {selectedServico.valor ? `R$ ${selectedServico.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "A combinar"}
                   </span>
                   <span className="text-[9px] text-gray-400">{getCobrancaLabel(selectedServico.tipoCobranca)}</span>
                 </div>
-                <div className="flex flex-col gap-0.5 border border-gray-100 p-2.5 rounded-[10px]">
+                <div className="flex flex-col gap-0.5 border border-[#e2ece9] p-2.5 rounded-[12px]">
                   <span className="text-gray-400 font-semibold text-[10px]">PRAZO</span>
                   <span className="font-bold text-gray-700">
                     {getPrazoLabel(selectedServico.tipoPrazo, selectedServico.dataPrazo)}
@@ -596,7 +686,7 @@ function ServicosFeed() {
               {/* Descrição */}
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-semibold text-gray-400">DESCRIÇÃO DO SERVIÇO</span>
-                <div className="text-xs text-gray-600 bg-gray-50/50 p-3 rounded-[12px] border border-gray-100 max-h-[120px] overflow-y-auto whitespace-pre-line leading-relaxed">
+                <div className="text-xs text-gray-600 bg-gray-50/60 p-3 rounded-[12px] border border-[#e2ece9] max-h-[120px] overflow-y-auto whitespace-pre-line leading-relaxed">
                   {selectedServico.descricao || "Nenhuma descrição fornecida para este serviço."}
                 </div>
               </div>
@@ -607,7 +697,7 @@ function ServicosFeed() {
                   <span className="text-[10px] font-semibold text-gray-400">MAQUINÁRIOS REQUISITADOS</span>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedServico.maquinarios.map(m => (
-                      <span key={m.id} className="text-[10px] font-medium text-gray-600 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
+                      <span key={m.id} className="text-[10px] font-medium text-gray-600 bg-gray-100 border border-[#e2ece9] px-2 py-0.5 rounded-full">
                         {m.nome}
                       </span>
                     ))}
@@ -616,38 +706,55 @@ function ServicosFeed() {
               )}
             </div>
 
+            {/* Contato WhatsApp se aprovado */}
+            {isCandidatoAprovado(selectedServico) && obterTelefoneAprovado(selectedServico) && (
+              <a
+                href={formatWhatsAppUrl(obterTelefoneAprovado(selectedServico)!)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-[12px] border border-[#84c4b4] bg-[#e8f5f2] hover:bg-[#d7eee9] text-[#2a594d] text-xs font-bold transition-colors"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                </svg>
+                <span>
+                  Continuar conversa com <span className="underline">{obterTelefoneAprovado(selectedServico)}</span>
+                </span>
+              </a>
+            )}
+
             {/* Ações */}
-            <div className="flex flex-col gap-2 pt-2 border-t border-gray-100 mt-1">
-              {appliedStatusMap.get(selectedServico.id) === 1 && selectedServico.status === SERVICO_STATUS.Concluido ? (
+            <div className="flex flex-col gap-2 pt-2 border-t border-[#e6f0ed] mt-1">
+              {isCandidatoAprovado(selectedServico) && selectedServico.status === SERVICO_STATUS.Concluido ? (
                 feitas.has(selectedServico.id) ? (
-                  <div className="w-full h-[46px] rounded-[15px] border border-green-200 bg-green-50 flex items-center justify-center text-green-700 font-semibold text-sm">
+                  <div className="w-full h-[46px] rounded-[12px] border border-green-200 bg-green-50 flex items-center justify-center text-green-700 font-semibold text-sm">
                     Avaliação enviada
                   </div>
                 ) : (
                   <button
                     type="button"
                     onClick={() => { setAvaliando(selectedServico); setSelectedServico(null) }}
-                    className="w-full h-[46px] rounded-[15px] border-2 border-[#2a594d] bg-[#7EBEB2] text-[#2a594d] font-bold text-sm"
+                    className="w-full h-[46px] rounded-[12px] border border-[#68b0a0] bg-[#7EBEB2] hover:bg-[#6eb0a3] text-[#2a594d] font-bold text-sm transition-colors"
                   >
                     Avaliar fornecedor
                   </button>
                 )
-              ) : appliedStatusMap.has(selectedServico.id) ? (
+              ) : appliedStatusMap.has(selectedServico.id) || isCandidatoAprovado(selectedServico) ? (
                 <div className="flex flex-col items-center gap-1.5 w-full">
-                  <div className="w-full h-[46px] rounded-[15px] border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-500 font-semibold text-sm gap-2">
+                  <div className="w-full h-[46px] rounded-[12px] border border-[#d5e6e2] bg-gray-50 flex items-center justify-center text-gray-500 font-semibold text-sm gap-2">
                     <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
                     Candidatura já enviada
                   </div>
                   <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                    Status: {getCandidaturaStatusBadge(appliedStatusMap.get(selectedServico.id)!)}
+                    Status: {getCandidaturaStatusBadge(appliedStatusMap.get(selectedServico.id) ?? 1)}
                   </div>
                 </div>
               ) : selectedServico.status !== SERVICO_STATUS.EmAndamento ? (
-                <div className="w-full h-[46px] rounded-[15px] border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-500 font-semibold text-sm">
+                <div className="w-full h-[46px] rounded-[12px] border border-[#d5e6e2] bg-gray-50 flex items-center justify-center text-gray-500 font-semibold text-sm">
                   Este serviço foi encerrado
                 </div>
               ) : selectedServico.costureiroVinculado ? (
-                <div className="w-full h-[46px] rounded-[15px] border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-500 font-semibold text-sm">
+                <div className="w-full h-[46px] rounded-[12px] border border-[#d5e6e2] bg-gray-50 flex items-center justify-center text-gray-500 font-semibold text-sm">
                   Este serviço já tem costureiro
                 </div>
               ) : (
@@ -655,7 +762,7 @@ function ServicosFeed() {
                   type="button"
                   disabled={isPending}
                   onClick={() => handleApply(selectedServico.id)}
-                  className="w-full h-[46px] rounded-[15px] border-2 border-[#2a594d] bg-[#7EBEB2] text-[#2a594d] font-bold text-sm hover:bg-[#6aada0] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full h-[46px] rounded-[12px] border border-[#68b0a0] bg-[#7EBEB2] text-[#2a594d] font-bold text-sm hover:bg-[#6aada0] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {isPending ? (
                     <>
@@ -671,7 +778,7 @@ function ServicosFeed() {
               <button
                 type="button"
                 onClick={() => setSelectedServico(null)}
-                className="w-full h-[40px] rounded-[15px] border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 text-xs font-semibold transition-colors"
+                className="w-full h-[40px] rounded-[12px] border border-[#d5e6e2] bg-white hover:bg-[#f4f9f8] text-gray-600 text-xs font-semibold transition-colors"
               >
                 Voltar
               </button>

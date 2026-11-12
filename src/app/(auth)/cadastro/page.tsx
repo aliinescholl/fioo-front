@@ -7,7 +7,12 @@ import { InputLabel } from "@/components/molecules/InputLabel"
 import { Button } from "@/components/atoms/Button"
 import { Logo } from "@/components/atoms/Logo"
 import { useAuth } from "@/context/AuthContext"
-import { validateCNPJ, formatCpfCnpj } from "@/lib/validation"
+import {
+  validateCNPJ,
+  formatCpfCnpj,
+  formatTelefone,
+  validateTelefone,
+} from "@/lib/validation"
 
 // ─── Validação de senha forte (alinhada com o backend) ───────────────────────
 function validatePassword(senha: string): string | null {
@@ -31,7 +36,7 @@ function PasswordStrength({ senha }: { senha: string }) {
       {checks.map(({ ok, label }) => (
         <span
           key={label}
-          className={`text-[11px] px-2 py-0.5 rounded-full border ${ok ? "border-green-200 bg-green-50 text-green-700" : "border-gray-200 bg-gray-50 text-gray-400"}`}
+          className={`text-[11px] px-2 py-0.5 rounded-full border ${ok ? "border-green-200 bg-green-50 text-green-700" : "border-[#d5e6e2] bg-gray-50 text-gray-400"}`}
         >
           {ok ? "✓" : "·"} {label}
         </span>
@@ -56,7 +61,7 @@ function TipoContaToggle({
     <div
       role="group"
       aria-label="Tipo de conta"
-      className="flex w-full rounded-[20px] border-2 border-[var(--color-primary-dark)] overflow-hidden"
+      className="flex w-full rounded-[20px] border border-[#68b0a0] overflow-hidden bg-white shadow-2xs"
     >
       {(["costureiro", "fornecedor"] as TipoConta[]).map((tipo) => {
         const active = value === tipo
@@ -73,7 +78,7 @@ function TipoContaToggle({
               disabled:opacity-50 disabled:cursor-not-allowed
               ${active
                 ? "bg-[var(--color-primary)] text-[var(--color-primary-dark)]"
-                : "bg-white text-gray-400 hover:text-gray-600"}
+                : "bg-white text-gray-400 hover:text-[#2a594d] hover:bg-[#f4f9f8]"}
             `}
           >
             {tipo === "costureiro" ? "✂️ Costureiro" : "🏭 Fornecedor"}
@@ -102,15 +107,17 @@ function CadastroForm() {
     nome: "",
     email: emailFromQuery,
     cnpj: "",
+    telefone: "",
     senha: "",
     confirmarSenha: "",
   })
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target
-    // Aplica máscara de CNPJ em tempo real
     if (name === "cnpj") {
       setForm(prev => ({ ...prev, cnpj: formatCpfCnpj(value) }))
+    } else if (name === "telefone") {
+      setForm(prev => ({ ...prev, telefone: formatTelefone(value) }))
     } else {
       setForm(prev => ({ ...prev, [name]: value }))
     }
@@ -135,9 +142,16 @@ function CadastroForm() {
     ? "CNPJ inválido"
     : null
 
+  const telefoneDigitos = form.telefone.replace(/\D/g, "")
+  const telefoneValido = ehCostureiro ? true : validateTelefone(form.telefone)
+  const telefoneErroLocal =
+    !ehCostureiro && telefoneDigitos.length > 0 && !telefoneValido
+      ? "Informe um telefone válido com DDD para WhatsApp"
+      : null
+
   const campoObrigatorioOk = ehCostureiro
     ? form.nome.trim().length > 0
-    : cnpjDigitos.length === 14 && cnpjValido
+    : cnpjDigitos.length === 14 && cnpjValido && telefoneValido
 
   const podeSubmeter = !isPending && senhasIguais && !senhaError && campoObrigatorioOk
 
@@ -159,6 +173,8 @@ function CadastroForm() {
     if (!ehCostureiro) {
       if (!form.cnpj) { setError("CNPJ é obrigatório"); return }
       if (!cnpjValido) { setError("CNPJ inválido. Informe os 14 dígitos corretamente."); return }
+      if (!form.telefone.trim()) { setError("Telefone é obrigatório"); return }
+      if (!telefoneValido) { setError("Informe um telefone válido com DDD aceito pelo WhatsApp."); return }
     }
 
     const pwdError = validatePassword(form.senha)
@@ -173,13 +189,14 @@ function CadastroForm() {
         form.senha,
         ehCostureiro,
         ehCostureiro ? undefined : form.cnpj,
+        ehCostureiro ? undefined : form.telefone,
       )
       if (result.error) setError(result.error)
     })
   }
 
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen px-6 gap-8">
+    <main className="flex flex-col items-center justify-center min-h-screen px-6 py-8 gap-8">
       <Logo />
 
       <form onSubmit={handleSubmit} className="w-full max-w-[271px] flex flex-col gap-4" noValidate>
@@ -213,12 +230,38 @@ function CadastroForm() {
               onChange={handleChange}
               disabled={isPending}
               maxLength={18}
+              required
             />
             {cnpjErroLocal && (
               <p role="alert" className="text-xs text-red-500">✗ {cnpjErroLocal}</p>
             )}
             {!cnpjErroLocal && cnpjDigitos.length === 14 && (
               <p className="text-xs text-green-600">✓ CNPJ válido</p>
+            )}
+          </div>
+        )}
+
+        {/* ── Campo Telefone obrigatório (somente Fornecedor) ── */}
+        {!ehCostureiro && (
+          <div className="flex flex-col gap-1">
+            <InputLabel
+              label="Telefone"
+              name="telefone"
+              type="tel"
+              inputMode="numeric"
+              placeholder="(00) 00000-0000"
+              value={form.telefone}
+              onChange={handleChange}
+              disabled={isPending}
+              maxLength={15}
+              autoComplete="tel"
+              required
+            />
+            {telefoneErroLocal && (
+              <p role="alert" className="text-xs text-red-500">✗ {telefoneErroLocal}</p>
+            )}
+            {!telefoneErroLocal && telefoneValido && (
+              <p className="text-xs text-green-600">✓ Telefone válido para WhatsApp</p>
             )}
           </div>
         )}
@@ -272,7 +315,7 @@ function CadastroForm() {
 
         {/* ── Erro global da API ── */}
         {error && (
-          <p role="alert" className="text-xs text-red-500 text-center bg-red-50 border border-red-200 rounded-[8px] px-3 py-2">
+          <p role="alert" className="text-xs text-red-500 text-center bg-red-50 border border-red-200 rounded-[12px] px-3 py-2">
             {error}
           </p>
         )}

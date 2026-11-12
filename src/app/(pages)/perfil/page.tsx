@@ -2,7 +2,14 @@
 
 import { useState, useRef, useEffect } from "react"
 import { useAuth } from "@/context/AuthContext"
-import { validateCPF, validateCNPJ, formatCpfCnpj } from "@/lib/validation"
+import { Select } from "@/components/atoms/Select"
+import {
+  validateCPF,
+  validateCNPJ,
+  formatCpfCnpj,
+  formatTelefone,
+  validateTelefone,
+} from "@/lib/validation"
 import { getMediaUrl } from "@/lib/media"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -23,35 +30,53 @@ function mapTipo(tipo: unknown): "costureiro" | "fornecedor" | "" {
   return ""
 }
 
+const PRONOME_OPCOES = [
+  { value: "", label: "Selecione" },
+  { value: "ele/dele", label: "Ele/Dele" },
+  { value: "ela/dela", label: "Ela/Dela" },
+  { value: "eles/deles", label: "Eles/Deles" },
+] as const
+
 // ─── Sub-componentes ──────────────────────────────────────────────────────────
 
 function Toast({ visible, error }: { visible: boolean; error?: string }) {
   const isError = !!error
   return (
-    <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg border transition-all duration-300 bg-white ${visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-3 pointer-events-none"} ${isError ? "border-red-200 text-red-600" : "border-green-200 text-green-700"}`}>
-      {isError
-        ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
-        : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-      }
+    <div
+      className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-[12px] shadow-lg border transition-all duration-300 bg-white ${
+        visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-3 pointer-events-none"
+      } ${isError ? "border-red-200 text-red-600" : "border-green-200 text-green-700"}`}
+    >
+      {isError ? (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+        </svg>
+      ) : (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      )}
       <span className="text-sm font-semibold">{isError ? error : "Alterações salvas"}</span>
     </div>
   )
 }
 
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button type="button" onClick={() => onChange(!checked)} role="switch" aria-checked={checked}
-      className={`relative w-[52px] h-[28px] rounded-full transition-colors duration-200 focus:outline-none ${checked ? "bg-[#7EBEB2]" : "bg-gray-200"}`}>
-      <span className={`absolute top-[3px] left-[3px] w-[22px] h-[22px] bg-white rounded-full shadow transition-transform duration-200 ${checked ? "translate-x-[24px]" : "translate-x-0"}`} />
-    </button>
-  )
-}
-
-function Field({ label, optional, children }: { label: string; optional?: boolean; children: React.ReactNode }) {
+function Field({
+  label,
+  optional,
+  required,
+  children,
+}: {
+  label: string
+  optional?: boolean
+  required?: boolean
+  children: React.ReactNode
+}) {
   return (
     <div className="flex flex-col gap-1">
       <label className="text-sm font-semibold text-gray-700">
         {label}
+        {required && <span className="ml-1 text-red-400">*</span>}
         {optional && <span className="ml-1 text-xs font-normal text-gray-400">(opcional)</span>}
       </label>
       {children}
@@ -59,7 +84,8 @@ function Field({ label, optional, children }: { label: string; optional?: boolea
   )
 }
 
-const inp = "w-full h-[44px] px-4 rounded-[10px] border border-gray-200 outline-none focus:border-[#7EBEB2] text-sm transition-colors bg-white"
+const inp =
+  "w-full h-[44px] px-4 rounded-[12px] border border-[#d5e6e2] hover:border-[#84c4b4] outline-none focus:border-[#7EBEB2] focus:ring-2 focus:ring-[#7EBEB2]/20 text-sm text-gray-700 placeholder:text-gray-400 transition-all bg-white"
 
 // ─── Página ───────────────────────────────────────────────────────────────────
 
@@ -79,8 +105,9 @@ export default function PerfilPage() {
   const [portfolioFiles, setPortfolioFiles] = useState<File[]>([])
   const portfolioRef = useRef<HTMLInputElement>(null)
 
-  // CPF/CNPJ
+  // Validações locais
   const [cpfCnpjError, setCpfCnpjError] = useState("")
+  const [telefoneError, setTelefoneError] = useState("")
 
   const [form, setForm] = useState({
     servico: "" as "costureiro" | "fornecedor" | "",
@@ -91,11 +118,18 @@ export default function PerfilPage() {
     email: "",
     cpfCnpj: "",
     telefone: "",
-    mostrarTelefone: false,
-    cep: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "",
+    cep: "",
+    rua: "",
+    numero: "",
+    complemento: "",
+    bairro: "",
+    cidade: "",
+    estado: "",
     tempoServico: "",
     maquinario: "",
   })
+
+  const ehFornecedor = form.servico === "fornecedor" || mapTipo(user?.role) === "fornecedor"
 
   // ─── Carrega perfil completo do backend ─────────────────────────────────────
   useEffect(() => {
@@ -104,7 +138,6 @@ export default function PerfilPage() {
       try {
         const res = await fetch("/api/perfil")
         if (!res.ok) {
-          // Fallback: usa só o que o JWT tem (user do AuthContext)
           if (user) {
             setForm(p => ({
               ...p,
@@ -119,7 +152,7 @@ export default function PerfilPage() {
 
         const u = await res.json()
 
-        // Determina o tipo: pode vir do campo "tipo" (int) ou "role" / "UsuarioTipo"
+        // Preserva internamente o tipo do usuário sem expor edição na interface
         const tipoRaw = get(u, "tipo") ?? get(u, "role") ?? user?.role
         const servico = mapTipo(tipoRaw)
 
@@ -137,9 +170,11 @@ export default function PerfilPage() {
         const bairro = get(end, "bairro") ?? get(u, "bairro") ?? ""
         const complemento = get(end, "complemento") ?? get(u, "complemento") ?? ""
 
-        // CpfCnpj formatado
+        // CpfCnpj e Telefone formatados
         const cpfCnpjRaw = get<string>(u, "cpfCnpj") ?? ""
         const cpfCnpjFmt = cpfCnpjRaw ? formatCpfCnpj(cpfCnpjRaw) : ""
+        const telRaw = get<string>(u, "telefone") ?? ""
+        const telFmt = telRaw ? formatTelefone(telRaw) : ""
 
         setForm({
           servico,
@@ -149,19 +184,22 @@ export default function PerfilPage() {
           nomeUsuario: get(u, "nomeUsuario") ?? user?.nomeUsuario ?? "",
           email: get(u, "email") ?? user?.email ?? "",
           cpfCnpj: cpfCnpjFmt,
-          telefone: get(u, "telefone") ?? "",
-          mostrarTelefone: get<boolean>(u, "telefoneVisivel") ?? false,
+          telefone: telFmt,
           tempoServico,
-          maquinario: "",   // lista de maquinários vem como array — não há campo de texto
-          cep, rua, numero, bairro, complemento, cidade, estado,
+          maquinario: "",
+          cep,
+          rua,
+          numero,
+          bairro,
+          complemento,
+          cidade,
+          estado,
         })
 
         // Foto de perfil existente
         const fotoUrl = get<string>(u, "fotoPerfilUrl")
         if (fotoUrl) setFotoPreview(getMediaUrl(fotoUrl))
-
       } catch {
-        // Fallback silencioso
         if (user) {
           setForm(p => ({
             ...p,
@@ -178,11 +216,11 @@ export default function PerfilPage() {
 
     fetchPerfil()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])   // roda uma vez — user.role vem do JWT que já está no contexto
+  }, [])
 
   // ─── Helpers de form ─────────────────────────────────────────────────────────
 
-  function set(name: string, value: string | boolean) {
+  function set(name: string, value: string) {
     setForm(p => ({ ...p, [name]: value }))
   }
 
@@ -236,6 +274,11 @@ export default function PerfilPage() {
     setCpfCnpjError("")
   }
 
+  function handleTelefone(e: React.ChangeEvent<HTMLInputElement>) {
+    set("telefone", formatTelefone(e.target.value))
+    setTelefoneError("")
+  }
+
   function validateDoc(): boolean {
     const d = form.cpfCnpj.replace(/\D/g, "")
     if (!d) return true
@@ -246,13 +289,33 @@ export default function PerfilPage() {
     return true
   }
 
+  function validateTel(): boolean {
+    const tel = form.telefone.trim()
+    if (!tel) {
+      if (ehFornecedor) {
+        setTelefoneError("O número de telefone é obrigatório")
+        return false
+      }
+      setTelefoneError("")
+      return true
+    }
+    if (!validateTelefone(tel)) {
+      setTelefoneError("Informe um telefone válido com DDD aceito pelo WhatsApp")
+      return false
+    }
+    setTelefoneError("")
+    return true
+  }
+
   function showToast(error?: string) {
     setToast({ visible: true, error })
     setTimeout(() => setToast({ visible: false }), 3500)
   }
 
   async function handleSave() {
-    if (!validateDoc()) return
+    const docOk = validateDoc()
+    const telOk = validateTel()
+    if (!docOk || !telOk) return
     setSaving(true)
 
     try {
@@ -264,11 +327,11 @@ export default function PerfilPage() {
       fd.append("NomeUsuario", form.nomeUsuario)
       fd.append("Email", form.email)
       fd.append("CpfCnpj", form.cpfCnpj.replace(/\D/g, ""))
-      fd.append("Telefone", form.telefone)
-      fd.append("TelefoneVisivel", String(form.mostrarTelefone))
+      fd.append("Telefone", form.telefone.replace(/\D/g, ""))
+      fd.append("TelefoneVisivel", "false")
 
-      // Tipo: costureiro=0, fornecedor=1
-      fd.append("Tipo", form.servico === "costureiro" ? "0" : "1")
+      // Preserva o tipo original do usuário sem permitir edição
+      fd.append("Tipo", ehFornecedor ? "1" : "0")
 
       const anos = form.tempoServico.replace(/\D/g, "")
       fd.append("AnosExperiencia", anos || "0")
@@ -329,13 +392,18 @@ export default function PerfilPage() {
 
           {/* ── Foto de perfil ── */}
           <div className="flex flex-col items-center gap-2 py-2">
-            <button type="button" onClick={() => fotoRef.current?.click()}
-              className="relative w-[100px] h-[100px] rounded-full bg-[#e8f5f2] border-2 border-[#7EBEB2] flex items-center justify-center overflow-hidden group">
-              {fotoPreview
-                ? <img src={getMediaUrl(fotoPreview) || fotoPreview} alt="Foto" className="w-full h-full object-cover" />
-                : <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#7EBEB2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <button
+              type="button"
+              onClick={() => fotoRef.current?.click()}
+              className="relative w-[100px] h-[100px] rounded-full bg-[#e8f5f2] border border-[#84c4b4] flex items-center justify-center overflow-hidden group"
+            >
+              {fotoPreview ? (
+                <img src={getMediaUrl(fotoPreview) || fotoPreview} alt="Foto" className="w-full h-full object-cover" />
+              ) : (
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#7EBEB2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-                </svg>}
+                </svg>
+              )}
               <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
@@ -346,25 +414,6 @@ export default function PerfilPage() {
             <input ref={fotoRef} type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" className="hidden" onChange={handleFoto} />
             <p className="text-xs text-gray-400">Toque para alterar a foto</p>
           </div>
-
-          {/* ── Serviço prestado ── */}
-          <Field label="Serviço prestado">
-            <div className="flex gap-3">
-              {(["costureiro", "fornecedor"] as const).map(tipo => (
-                <button
-                  key={tipo}
-                  type="button"
-                  onClick={() => set("servico", tipo)}
-                  className={`flex-1 h-[44px] rounded-[20px] border-2 text-sm font-semibold transition-all ${form.servico === tipo
-                    ? "border-[#7EBEB2] bg-[#e8f5f2] text-[#2a594d]"
-                    : "border-gray-200 bg-white text-gray-500"
-                    }`}
-                >
-                  {tipo === "costureiro" ? "Costureiro(a)" : "Fornecedor(a)"}
-                </button>
-              ))}
-            </div>
-          </Field>
 
           {/* ── Nome completo ── */}
           <Field label="Nome completo">
@@ -378,12 +427,13 @@ export default function PerfilPage() {
 
           {/* ── Pronome ── */}
           <Field label="Pronome" optional>
-            <select className={inp} value={form.pronome} onChange={e => set("pronome", e.target.value)}>
-              <option value="">Selecione</option>
-              <option value="ele/dele">Ele/Dele</option>
-              <option value="ela/dela">Ela/Dela</option>
-              <option value="eles/deles">Eles/Deles</option>
-            </select>
+            <Select
+              ariaLabel="Pronome"
+              value={form.pronome}
+              onChange={v => set("pronome", v)}
+              options={PRONOME_OPCOES}
+              placeholder="Selecione"
+            />
           </Field>
 
           {/* ── Nome de usuário ── */}
@@ -400,16 +450,29 @@ export default function PerfilPage() {
           <div className="flex flex-col gap-1">
             <label className="text-sm font-semibold text-gray-700">CPF / CNPJ</label>
             <input
-              className={`${inp} ${cpfCnpjError ? "border-red-400 bg-red-50 focus:border-red-400" : ""}`}
-              value={form.cpfCnpj} onChange={handleCpfCnpj} onBlur={validateDoc}
-              placeholder="000.000.000-00 ou 00.000.000/0000-00" maxLength={18}
+              className={`${inp} ${cpfCnpjError ? "border-red-300 bg-red-50 focus:border-red-400" : ""}`}
+              value={form.cpfCnpj}
+              onChange={handleCpfCnpj}
+              onBlur={validateDoc}
+              placeholder="000.000.000-00 ou 00.000.000/0000-00"
+              maxLength={18}
             />
             {cpfCnpjError && <p className="text-xs text-red-500">{cpfCnpjError}</p>}
           </div>
 
-          {/* ── Telefone ── */}
-          <Field label="Número de telefone">
-            <input className={inp} value={form.telefone} onChange={e => set("telefone", e.target.value)} placeholder="(00) 00000-0000" />
+          {/* ── Telefone (WhatsApp) ── */}
+          <Field label="Número de telefone" required={ehFornecedor}>
+            <input
+              type="tel"
+              inputMode="numeric"
+              maxLength={15}
+              className={`${inp} ${telefoneError ? "border-red-300 bg-red-50 focus:border-red-400" : ""}`}
+              value={form.telefone}
+              onChange={handleTelefone}
+              onBlur={validateTel}
+              placeholder="(00) 00000-0000"
+            />
+            {telefoneError && <p className="text-xs text-red-500">{telefoneError}</p>}
           </Field>
 
           {/* ── Endereço ── */}
@@ -417,8 +480,8 @@ export default function PerfilPage() {
             <label className="text-sm font-semibold text-gray-700">Localização</label>
 
             <div className="flex gap-2">
-              <input className={`${inp} w-[110px]`} value={form.cep} onChange={e => set("cep", e.target.value)} placeholder="CEP" maxLength={9} />
-              <input className={`${inp} w-[68px]`} value={form.numero} onChange={e => set("numero", e.target.value)} placeholder="N°" />
+              <input className={`${inp} flex-1 max-w-[140px]`} value={form.cep} onChange={e => set("cep", e.target.value)} placeholder="CEP" maxLength={9} />
+              <input className={`${inp} w-[88px]`} value={form.numero} onChange={e => set("numero", e.target.value)} placeholder="N°" />
             </div>
             <input className={inp} value={form.bairro} onChange={e => set("bairro", e.target.value)} placeholder="Bairro" />
             <input className={inp} value={form.complemento} onChange={e => set("complemento", e.target.value)} placeholder="Complemento (opcional)" />
@@ -438,39 +501,40 @@ export default function PerfilPage() {
           {/* ── Portfólio ── */}
           <div className="flex flex-col gap-2">
             <label className="text-sm font-semibold text-gray-700">Portfólio</label>
-            <button type="button" onClick={() => portfolioRef.current?.click()}
-              className="w-full h-[96px] border-2 border-dashed border-[#7EBEB2] rounded-[12px] flex flex-col items-center justify-center gap-2 bg-[#f7fffe] hover:bg-[#e8f5f2] transition-colors">
+            <button
+              type="button"
+              onClick={() => portfolioRef.current?.click()}
+              className="w-full h-[96px] border border-dashed border-[#84c4b4] rounded-[12px] flex flex-col items-center justify-center gap-2 bg-[#f7fffe] hover:bg-[#e8f5f2] transition-colors"
+            >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7EBEB2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
               </svg>
-              <span className="text-sm text-[#7EBEB2] font-medium">Anexe fotos de seus trabalhos</span>
+              <span className="text-sm text-[#2a594d] font-medium">Anexe fotos de seus trabalhos</span>
             </button>
             <input ref={portfolioRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePortfolio} />
             {portfolioPreviews.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {portfolioPreviews.map((src, i) => (
-                  <div key={i} className="relative w-[72px] h-[72px] rounded-[8px] overflow-hidden border border-gray-100">
+                  <div key={i} className="relative w-[72px] h-[72px] rounded-[10px] overflow-hidden border border-[#e2ece9]">
                     <img src={src} alt="" className="w-full h-full object-cover" />
-                    <button type="button" onClick={() => removePortfolio(i)}
-                      className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-[11px] leading-none flex items-center justify-center">×</button>
+                    <button
+                      type="button"
+                      onClick={() => removePortfolio(i)}
+                      className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-[11px] leading-none flex items-center justify-center"
+                    >
+                      ×
+                    </button>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* ── Mostrar telefone ── */}
-          <div className="flex items-center justify-between py-1">
-            <span className="text-sm font-semibold text-gray-700">Mostrar número para outros usuários?</span>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400">{form.mostrarTelefone ? "Sim" : "Não"}</span>
-              <Toggle checked={form.mostrarTelefone} onChange={v => set("mostrarTelefone", v)} />
-            </div>
-          </div>
-
           {/* ── Verificar perfil ── */}
-          <button type="button"
-            className="w-full h-[44px] rounded-[20px] border-2 border-[#7EBEB2] bg-white text-[#2a594d] text-sm font-semibold flex items-center justify-center gap-2 hover:bg-[#e8f5f2] transition-colors">
+          <button
+            type="button"
+            className="w-full h-[44px] rounded-[20px] border border-[#84c4b4] bg-white text-[#2a594d] text-sm font-semibold flex items-center justify-center gap-2 hover:bg-[#e8f5f2] transition-colors"
+          >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
             </svg>
@@ -478,14 +542,20 @@ export default function PerfilPage() {
           </button>
 
           {/* ── Salvar ── */}
-          <button type="button" onClick={handleSave} disabled={saving}
-            className="w-full h-[50px] rounded-[20px] border-2 border-[#2a594d] bg-[#7EBEB2] text-[#2a594d] text-[20px] font-bold hover:bg-[#6aada0] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full h-[50px] rounded-[20px] border border-[#68b0a0] bg-[#7EBEB2] text-[#2a594d] text-[20px] font-bold hover:bg-[#6aada0] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+          >
             {saving ? "Salvando..." : "Salvar"}
           </button>
 
           {/* ── Logout ── */}
-          <button onClick={logout}
-            className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-[12px] border-2 border-red-200 bg-red-50 text-red-500 text-sm font-semibold hover:bg-red-100 active:scale-[0.98] transition-all">
+          <button
+            onClick={logout}
+            className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-[12px] border border-red-200 bg-red-50 text-red-500 text-sm font-semibold hover:bg-red-100 active:scale-[0.98] transition-all"
+          >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
               <polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />

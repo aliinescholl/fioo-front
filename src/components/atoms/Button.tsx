@@ -15,19 +15,25 @@ export function Button({
 }: Props) {
   const variants = {
     primary: `
-      border-2 border-[var(--color-primary-dark)]
+      border border-[#68b0a0]
       bg-[var(--color-primary)]
       text-[var(--color-primary-dark)]
+      hover:bg-[#72b5a4]
+      hover:border-[#5aa090]
     `,
     danger: `
-      border-2 border-red-300
+      border border-red-200
       bg-red-50
       text-red-600
+      hover:bg-red-100
+      hover:border-red-300
     `,
     ghost: `
-      border-2 border-gray-200
+      border border-[#d5e6e2]
       bg-white
       text-gray-600
+      hover:bg-[#f4f9f8]
+      hover:border-[#84c4b4]
     `,
   }
 
@@ -40,9 +46,12 @@ export function Button({
         w-full
         h-[44px]
         rounded-[20px]
-        text-[24px]
+        text-[20px]
         font-bold
-        transition-opacity
+        transition-all
+        outline-none
+        focus-visible:ring-2
+        focus-visible:ring-[#7EBEB2]/30
         disabled:opacity-50
         disabled:cursor-not-allowed
         ${variants[variant]}

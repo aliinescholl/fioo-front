@@ -48,3 +48,47 @@ export function formatCpfCnpj(raw: string): string {
     .replace(/\.(\d{3})(\d)/, ".$1/$2")
     .replace(/(\d{4})(\d)/, "$1-$2")
 }
+
+/** Extrai os dígitos locais (DDD + número, 10 ou 11 dígitos) de um telefone */
+export function extrairDigitosTelefone(raw: string): string {
+  const d = raw.replace(/\D/g, "")
+  if ((d.length === 12 || d.length === 13) && d.startsWith("55")) {
+    return d.slice(2)
+  }
+  return d.slice(0, 11)
+}
+
+/** Formata telefone brasileiro no padrão (00) 00000-0000 ou (00) 0000-0000 */
+export function formatTelefone(raw: string): string {
+  const d = extrairDigitosTelefone(raw)
+  if (d.length === 0) return ""
+  if (d.length <= 2) return `(${d}`
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6, 10)}`
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7, 11)}`
+}
+
+/**
+ * Valida se o telefone está em um formato brasileiro válido e aceito pelo WhatsApp
+ * (DDD de 2 dígitos de 11 a 99 + 8 ou 9 dígitos de assinante).
+ */
+export function validateTelefone(raw: string): boolean {
+  if (!raw) return false
+  let d = raw.replace(/\D/g, "")
+  if ((d.length === 12 || d.length === 13) && d.startsWith("55")) {
+    d = d.slice(2)
+  }
+  if (d.length !== 10 && d.length !== 11) return false
+  if (!/^[1-9][1-9]\d{8,9}$/.test(d)) return false
+  const numeroAssinante = d.slice(2)
+  if (/^0+$/.test(numeroAssinante)) return false
+  return true
+}
+
+/** Gera o link oficial do WhatsApp (https://wa.me/TELEFONE) com DDI 55 */
+export function formatWhatsAppUrl(raw: string): string {
+  const d = raw.replace(/\D/g, "")
+  if (!d) return "https://wa.me/"
+  const comDdi = (d.length === 10 || d.length === 11) ? `55${d}` : d
+  return `https://wa.me/${comDdi}`
+}

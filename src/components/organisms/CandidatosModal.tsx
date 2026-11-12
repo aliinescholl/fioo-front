@@ -86,9 +86,9 @@ export function CandidatosModal({ servicoId, servicoTitulo, podeAceitar, onClose
       role="dialog"
       aria-modal="true"
       aria-labelledby="candidatos-titulo"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-xs animate-[fadeIn_0.15s_ease-out]"
     >
-      <div className="bg-white rounded-[20px] max-w-[440px] w-full max-h-[85vh] p-5 flex flex-col gap-4 border border-gray-100 shadow-2xl">
+      <div className="bg-white rounded-[20px] max-w-[440px] w-full max-h-[85vh] p-5 flex flex-col gap-4 border border-[#e2ece9] shadow-2xl">
 
         <div className="flex justify-between items-start gap-3">
           <div className="flex flex-col gap-0.5">
@@ -99,17 +99,17 @@ export function CandidatosModal({ servicoId, servicoTitulo, podeAceitar, onClose
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="w-9 h-9 rounded-full bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-500"
+            className="w-8 h-8 rounded-full bg-gray-50 hover:bg-gray-100 border border-[#e2ece9] flex items-center justify-center text-gray-500 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
 
         {sucesso && (
-          <p className="text-sm font-semibold text-green-700 bg-green-50 border border-green-200 rounded-[10px] px-3 py-2">{sucesso}</p>
+          <p className="text-sm font-semibold text-green-700 bg-green-50 border border-green-200 rounded-[12px] px-3 py-2">{sucesso}</p>
         )}
         {erro && (
-          <p className="text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded-[10px] px-3 py-2">{erro}</p>
+          <p className="text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded-[12px] px-3 py-2">{erro}</p>
         )}
 
         <div className="flex flex-col gap-2 overflow-y-auto">
@@ -124,13 +124,13 @@ export function CandidatosModal({ servicoId, servicoTitulo, podeAceitar, onClose
               const status = STATUS_CANDIDATURA[c.status]
               const mostrarAceitar = podeAceitar && !temCostureiro && c.status === 0
               return (
-                <div key={c.candidaturaId} className="flex flex-col gap-2 p-3 border border-gray-100 rounded-[12px]">
+                <div key={c.candidaturaId} className="flex flex-col gap-2 p-3 border border-[#e2ece9] rounded-[12px]">
                   <div className="flex items-center gap-3">
                     <div className="w-[36px] h-[36px] shrink-0 rounded-full bg-[#7EBEB2] flex items-center justify-center text-white font-bold">
                       {c.usuario.nome.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex flex-col flex-1 min-w-0">
-                      <Link href={`/usuarios/${c.usuario.id}`} className="text-sm font-semibold text-[#2a594d] underline truncate">
+                      <Link href={`/usuarios/${c.usuario.id}`} className="text-sm font-semibold text-[#2a594d] hover:underline truncate">
                         {c.usuario.nome}
                       </Link>
                       <span className="text-xs text-gray-400">@{c.usuario.nomeUsuario}</span>
@@ -144,7 +144,7 @@ export function CandidatosModal({ servicoId, servicoTitulo, podeAceitar, onClose
                   </div>
 
                   {mostrarAceitar && (confirmando?.candidaturaId === c.candidaturaId ? (
-                    <div className="flex flex-col gap-2 bg-[#e8f5f2] rounded-[10px] p-3">
+                    <div className="flex flex-col gap-2 bg-[#f4f9f8] border border-[#cfe5e0] rounded-[12px] p-3">
                       <span className="text-sm text-[#2a594d]">
                         Aceitar <strong>{c.usuario.nome}</strong> para este serviço? Os outros candidatos serão recusados.
                       </span>
@@ -153,7 +153,7 @@ export function CandidatosModal({ servicoId, servicoTitulo, podeAceitar, onClose
                           type="button"
                           disabled={enviando}
                           onClick={() => aceitar(c)}
-                          className="flex-1 h-[44px] rounded-[12px] border-2 border-[#2a594d] bg-[#7EBEB2] text-[#2a594d] font-bold text-sm disabled:opacity-60"
+                          className="flex-1 h-[42px] rounded-[12px] border border-[#68b0a0] bg-[#7EBEB2] hover:bg-[#6eb0a3] text-[#2a594d] font-bold text-sm transition-colors disabled:opacity-60"
                         >
                           {enviando ? "Aceitando..." : "Sim, aceitar"}
                         </button>
@@ -161,7 +161,7 @@ export function CandidatosModal({ servicoId, servicoTitulo, podeAceitar, onClose
                           type="button"
                           disabled={enviando}
                           onClick={() => setConfirmando(null)}
-                          className="flex-1 h-[44px] rounded-[12px] border border-gray-200 bg-white text-gray-600 font-semibold text-sm"
+                          className="flex-1 h-[42px] rounded-[12px] border border-[#d5e6e2] bg-white hover:bg-[#f4f9f8] text-gray-600 font-semibold text-sm transition-colors"
                         >
                           Voltar
                         </button>
@@ -171,7 +171,7 @@ export function CandidatosModal({ servicoId, servicoTitulo, podeAceitar, onClose
                     <button
                       type="button"
                       onClick={() => { setSucesso(null); setConfirmando(c) }}
-                      className="h-[44px] rounded-[12px] border-2 border-[#2a594d] bg-[#7EBEB2] text-[#2a594d] font-bold text-sm hover:bg-[#6aada0]"
+                      className="h-[42px] rounded-[12px] border border-[#68b0a0] bg-[#7EBEB2] hover:bg-[#6eb0a3] text-[#2a594d] font-bold text-sm transition-colors"
                     >
                       Aceitar
                     </button>
@@ -185,7 +185,7 @@ export function CandidatosModal({ servicoId, servicoTitulo, podeAceitar, onClose
         <button
           type="button"
           onClick={onClose}
-          className="w-full h-[44px] rounded-[15px] border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 text-sm font-semibold"
+          className="w-full h-[44px] rounded-[12px] border border-[#d5e6e2] bg-white hover:bg-[#f4f9f8] text-gray-600 text-sm font-semibold transition-colors"
         >
           Fechar
         </button>

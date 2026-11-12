@@ -51,7 +51,7 @@ export function Avatar({
     <div
       className={`
         relative flex items-center justify-center overflow-hidden shrink-0 select-none
-        border border-[#7EBEB2] bg-[#e8f5f2] text-[#2a594d]
+        border border-[#b8dcd3] bg-[#e8f5f2] text-[#2a594d]
         ${containerClass}
         ${shapeClass}
         ${className}

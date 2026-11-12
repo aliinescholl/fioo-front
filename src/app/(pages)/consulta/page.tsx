@@ -5,15 +5,30 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { TabsConsulta } from "@/components/organisms/TabsConsulta"
 import { OpcoesFiltro, PainelFiltros } from "@/components/organisms/PainelFiltros"
 import { SearchInput } from "@/components/atoms/SearchInput"
+import { Select } from "@/components/atoms/Select"
 import { UserCard } from "@/components/organisms/UserCard"
 import { FilterTag } from "@/components/molecules/FilterTag"
 import { ESTADOS_BR } from "@/data/estados"
 import {
-  AVALIACAO_MIN_OPCOES, ORDENACAO_USUARIOS, contarFiltrosUsuarios, filtrosUsuariosParaQuery, filtrosUsuariosParaUrl,
-  lerFiltrosUsuarios, type AbaEncontrar, type FiltrosUsuarios, type PaginaUsuarios, type UsuarioCard,
+  AVALIACAO_MIN_OPCOES,
+  ORDENACAO_USUARIOS,
+  contarFiltrosUsuarios,
+  filtrosUsuariosParaQuery,
+  filtrosUsuariosParaUrl,
+  lerFiltrosUsuarios,
+  type AbaEncontrar,
+  type FiltrosUsuarios,
+  type PaginaUsuarios,
+  type UsuarioCard,
 } from "@/types/usuario"
 
-const inp = "w-full h-[44px] px-3 rounded-[10px] border border-gray-200 outline-none focus:border-[#7EBEB2] text-sm bg-white"
+const UF_OPCOES = [
+  { value: "", label: "UF" },
+  ...ESTADOS_BR.map(uf => ({ value: uf, label: uf })),
+]
+
+const inp =
+  "h-[44px] px-3.5 rounded-[12px] border border-[#d5e6e2] hover:border-[#84c4b4] outline-none focus:border-[#7EBEB2] focus:ring-2 focus:ring-[#7EBEB2]/20 text-sm text-gray-700 placeholder:text-gray-400 bg-white transition-all"
 
 // useSearchParams exige um limite de Suspense no App Router
 export default function ConsultaPage() {
@@ -151,23 +166,22 @@ function Encontrar() {
         >
           <div className="flex flex-col gap-1.5">
             <span className="text-sm font-semibold text-gray-700">Localização</span>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <input
                 aria-label="Cidade"
                 placeholder="Cidade"
-                className={`${inp} flex-1`}
+                className={`${inp} flex-1 min-w-0`}
                 value={rascunho.cidade}
                 onChange={e => setRascunho(r => ({ ...r, cidade: e.target.value }))}
               />
-              <select
-                aria-label="Estado (UF)"
-                className={`${inp} w-[90px]`}
+              <Select
+                ariaLabel="Estado (UF)"
+                className="w-[96px] shrink-0"
                 value={rascunho.uf}
-                onChange={e => setRascunho(r => ({ ...r, uf: e.target.value }))}
-              >
-                <option value="">UF</option>
-                {ESTADOS_BR.map(uf => <option key={uf} value={uf}>{uf}</option>)}
-              </select>
+                onChange={uf => setRascunho(r => ({ ...r, uf }))}
+                options={UF_OPCOES}
+                placeholder="UF"
+              />
             </div>
           </div>
 
@@ -197,7 +211,11 @@ function Encontrar() {
           {!carregando && erro && (
             <div className="flex flex-col items-center gap-2 mt-4">
               <span className="text-sm font-semibold text-red-600">{erro}</span>
-              <button type="button" onClick={() => carregar(1)} className="h-[44px] px-4 rounded-[12px] border border-red-200 text-sm font-semibold text-red-700">
+              <button
+                type="button"
+                onClick={() => carregar(1)}
+                className="h-[44px] px-4 rounded-[12px] border border-red-200 bg-red-50 hover:bg-red-100 text-sm font-semibold text-red-700 transition-colors"
+              >
                 Tentar novamente
               </button>
             </div>
@@ -210,7 +228,7 @@ function Encontrar() {
                 <button
                   type="button"
                   onClick={limparFiltros}
-                  className="h-[44px] px-4 rounded-[12px] border-2 border-[#2a594d] bg-[#7EBEB2] text-[#2a594d] text-sm font-bold"
+                  className="h-[44px] px-4 rounded-[12px] border border-[#68b0a0] bg-[#7EBEB2] hover:bg-[#6eb0a3] text-[#2a594d] text-sm font-bold transition-colors"
                 >
                   Limpar filtros
                 </button>
@@ -237,7 +255,7 @@ function Encontrar() {
               type="button"
               onClick={() => carregar(pagina + 1)}
               disabled={carregandoMais}
-              className="w-full h-[44px] rounded-[15px] border-2 border-[#84c4b4] bg-white text-[#2a594d] text-sm font-bold disabled:opacity-60"
+              className="w-full h-[44px] rounded-[16px] border border-[#84c4b4] bg-white hover:bg-[#f4f9f8] text-[#2a594d] text-sm font-bold transition-colors disabled:opacity-60"
             >
               {carregandoMais ? "Carregando..." : "Carregar mais"}
             </button>

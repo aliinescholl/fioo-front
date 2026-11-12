@@ -43,6 +43,7 @@ export default function MeusServicosPage() {
 
   useEffect(() => {
     if (user?.id) loadServicos()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
 
   const filtered = servicos.filter(s => {
@@ -73,7 +74,7 @@ export default function MeusServicosPage() {
           </div>
           <button
             onClick={() => router.push("/servicos/novo")}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] bg-[#7EBEB2] border-2 border-[#2a594d] text-[#2a594d] text-xs font-bold hover:bg-[#6aada0] active:scale-[0.98] transition-all"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-[12px] bg-[#7EBEB2] border border-[#68b0a0] text-[#2a594d] text-xs font-bold hover:bg-[#6aada0] active:scale-[0.98] transition-all"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -83,14 +84,14 @@ export default function MeusServicosPage() {
         </div>
 
         {/* Barra de pesquisa */}
-        <div className="flex items-center border-[1.5px] border-[#7EBEB2] rounded-[10px] h-[40px] w-full overflow-hidden bg-white">
+        <div className="flex items-center border border-[#84c4b4] focus-within:border-[#68b0a0] focus-within:ring-2 focus-within:ring-[#7EBEB2]/20 rounded-[12px] h-[44px] w-full overflow-hidden bg-white transition-all">
           <input
             placeholder="Pesquisar por título ou categoria..."
-            className="flex-1 h-full px-3 outline-none text-sm text-gray-700"
+            className="flex-1 h-full px-3.5 outline-none text-sm text-gray-700 placeholder:text-gray-400 bg-transparent"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
-          <div className="w-[40px] h-full flex items-center justify-center bg-[#84c4b4]">
+          <div className="w-[44px] h-full flex items-center justify-center bg-[#84c4b4]">
             <Image src="/search.svg" alt="Search" width={16} height={16} />
           </div>
         </div>
@@ -102,17 +103,17 @@ export default function MeusServicosPage() {
             <span className="text-xs text-gray-400">Carregando seus serviços...</span>
           </div>
         ) : error ? (
-          <div className="flex flex-col items-center text-center py-10 gap-3 border border-red-100 bg-red-50 rounded-[15px] p-4">
+          <div className="flex flex-col items-center text-center py-10 gap-3 border border-red-200 bg-red-50 rounded-[16px] p-4">
             <span className="text-sm font-semibold text-red-600">Erro: {error}</span>
             <button
               onClick={loadServicos}
-              className="px-4 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-lg text-xs transition-colors"
+              className="px-4 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-[10px] text-xs transition-colors"
             >
               Tentar Novamente
             </button>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center text-center py-12 gap-3 border border-dashed border-gray-200 rounded-[15px] bg-white p-4">
+          <div className="flex flex-col items-center text-center py-12 gap-3 border border-dashed border-[#cfe5e0] rounded-[16px] bg-white p-4">
             <Image src="/machine.svg" alt="Nenhum serviço" width={40} height={40} className="opacity-40" />
             <span className="text-sm font-semibold text-gray-500">
               {search ? "Nenhum serviço encontrado" : "Você ainda não cadastrou serviços"}
@@ -120,7 +121,7 @@ export default function MeusServicosPage() {
             {!search && (
               <button
                 onClick={() => router.push("/servicos/novo")}
-                className="px-4 py-2 rounded-[10px] bg-[#7EBEB2] border-2 border-[#2a594d] text-[#2a594d] text-xs font-bold hover:bg-[#6aada0] transition-all"
+                className="px-4 py-2 rounded-[12px] bg-[#7EBEB2] border border-[#68b0a0] text-[#2a594d] text-xs font-bold hover:bg-[#6aada0] transition-all"
               >
                 Cadastrar primeiro serviço
               </button>
@@ -130,27 +131,37 @@ export default function MeusServicosPage() {
           <div className="flex flex-col gap-3">
             {filtered.map(s => {
               const statusCfg = STATUS_SERVICO_CONFIG[s.status]
+              const podeEditar = s.status === SERVICO_STATUS.EmAndamento
               return (
                 <div
                   key={s.id}
                   onClick={() => router.push(`/servicos/${s.id}/editar`)}
-                  className="flex flex-col p-4 border border-gray-100 bg-white rounded-[15px] shadow-sm hover:shadow-md hover:border-[#7EBEB2] transition-all cursor-pointer gap-2.5 relative group"
+                  className="flex flex-col p-4 border border-[#e2ece9] bg-white rounded-[16px] shadow-xs hover:shadow-sm hover:border-[#84c4b4] transition-all cursor-pointer gap-2.5 relative group"
                 >
                   {/* Linha superior */}
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold tracking-wide uppercase text-[#2a594d] bg-[#e8f5f2] px-2 py-0.5 rounded-full">
+                    <span className="text-[11px] font-semibold tracking-wide uppercase text-[#2a594d] bg-[#e8f5f2] border border-[#cfe5e0] px-2.5 py-0.5 rounded-full">
                       {s.categoriaServico || "Geral"}
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${statusCfg.className}`}>
+                      <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${statusCfg.className}`}>
                         {statusCfg.label}
                       </span>
-                      <span className="text-[11px] font-medium text-gray-400 group-hover:text-[#7EBEB2] transition-colors flex items-center gap-1">
-                        Editar
-                        <svg className="w-3 h-3 transform group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </span>
+                      {podeEditar ? (
+                        <span className="text-[11px] font-medium text-gray-400 group-hover:text-[#2a594d] transition-colors flex items-center gap-1">
+                          Editar
+                          <svg className="w-3 h-3 transform group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-medium text-gray-400 group-hover:text-[#2a594d] transition-colors flex items-center gap-1">
+                          Ver Detalhes
+                          <svg className="w-3 h-3 transform group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -158,7 +169,7 @@ export default function MeusServicosPage() {
                   <h3 className="font-bold text-base text-gray-800 leading-tight">{s.titulo}</h3>
 
                   {/* Informações */}
-                  <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-xs text-gray-500 pt-1 border-t border-gray-50">
+                  <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-xs text-gray-500 pt-1.5 border-t border-[#eef5f3]">
                     <div className="flex items-center gap-1.5">
                       <span className="text-gray-400 font-bold">R$</span>
                       <span>
@@ -183,7 +194,7 @@ export default function MeusServicosPage() {
                   </div>
 
                   {/* Costureiro vinculado / candidatos */}
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-50">
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#eef5f3]">
                     <span className="text-xs text-gray-600">
                       {s.costureiroVinculado
                         ? <>Costureiro: <strong>{s.costureiroVinculado.nome}</strong></>
@@ -191,14 +202,14 @@ export default function MeusServicosPage() {
                     </span>
                     {s.status === SERVICO_STATUS.Concluido && s.costureiroVinculado ? (
                       feitas.has(s.id) ? (
-                        <span className="shrink-0 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-full">
+                        <span className="shrink-0 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
                           Avaliação enviada
                         </span>
                       ) : (
                         <button
                           type="button"
                           onClick={e => { e.stopPropagation(); setAvaliando(s) }}
-                          className="shrink-0 h-[40px] px-3 rounded-[10px] border-2 border-[#2a594d] bg-[#7EBEB2] text-[#2a594d] text-xs font-bold"
+                          className="shrink-0 h-[38px] px-3 rounded-[10px] border border-[#68b0a0] bg-[#7EBEB2] hover:bg-[#6eb0a3] text-[#2a594d] text-xs font-bold transition-colors"
                         >
                           Avaliar costureiro
                         </button>
@@ -207,7 +218,7 @@ export default function MeusServicosPage() {
                       <button
                         type="button"
                         onClick={e => { e.stopPropagation(); setCandidatosDe(s) }}
-                        className="shrink-0 h-[40px] px-3 rounded-[10px] border-2 border-[#7EBEB2] bg-white text-[#2a594d] text-xs font-bold hover:bg-[#e8f5f2] transition-colors"
+                        className="shrink-0 h-[38px] px-3 rounded-[10px] border border-[#84c4b4] bg-white text-[#2a594d] text-xs font-bold hover:bg-[#e8f5f2] transition-colors"
                       >
                         Ver candidatos
                       </button>

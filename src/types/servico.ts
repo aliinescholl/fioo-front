@@ -34,6 +34,7 @@ export interface UsuarioResumo {
   fotoPerfilUrl?: string | null
   cidade?: string | null
   estado?: string | null
+  telefone?: string | null
 }
 
 export interface Maquinario {
@@ -57,6 +58,7 @@ export interface Servico {
   usuario: UsuarioResumo
   maquinarios: Maquinario[]
   costureiroVinculado: UsuarioResumo | null
+  telefoneFornecedor?: string | null
 }
 
 /** Corpo enviado ao cadastrar/editar um serviço. */

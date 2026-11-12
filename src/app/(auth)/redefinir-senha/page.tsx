@@ -128,7 +128,7 @@ function RedefinirSenhaForm() {
             </p>
             <Link
               href="/login"
-              className="inline-block mt-2 w-full py-2.5 rounded-[20px] bg-[var(--color-primary)] border-2 border-[var(--color-primary-dark)] text-[var(--color-primary-dark)] font-bold text-center text-sm hover:opacity-90 transition-opacity"
+              className="inline-block mt-2 w-full py-2.5 rounded-[20px] bg-[var(--color-primary)] border border-[#68b0a0] text-[var(--color-primary-dark)] font-bold text-center text-sm hover:opacity-90 transition-opacity"
             >
               Ir para o Login
             </Link>

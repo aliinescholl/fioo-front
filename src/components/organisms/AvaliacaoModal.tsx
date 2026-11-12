@@ -69,9 +69,9 @@ export function AvaliacaoModal({ servicoId, servicoTitulo, papelAvaliado, nomeAv
       role="dialog"
       aria-modal="true"
       aria-labelledby="avaliacao-titulo"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-xs animate-[fadeIn_0.15s_ease-out]"
     >
-      <div className="bg-white rounded-[20px] max-w-[440px] w-full max-h-[90vh] overflow-y-auto p-5 flex flex-col gap-5 shadow-2xl">
+      <div className="bg-white rounded-[20px] max-w-[440px] w-full max-h-[90vh] overflow-y-auto p-5 flex flex-col gap-5 border border-[#e2ece9] shadow-2xl">
         <div className="flex flex-col gap-1">
           <h3 id="avaliacao-titulo" className="text-lg font-bold text-gray-800">{titulo}</h3>
           <span className="text-sm text-gray-600">{nomeAvaliado}</span>
@@ -80,7 +80,7 @@ export function AvaliacaoModal({ servicoId, servicoTitulo, papelAvaliado, nomeAv
 
         <EstrelasInput rotulo="Nota geral" nome="nota-geral" valor={nota} onChange={setNota} erro={erros.nota} grande />
 
-        <div className="flex flex-col gap-3 pt-3 border-t border-gray-100">
+        <div className="flex flex-col gap-3 pt-3 border-t border-[#e6f0ed]">
           <span className="text-base font-bold text-gray-800">Aspectos</span>
           <EstrelasInput rotulo="Comunicação" nome="nota-comunicacao" valor={comunicacao} onChange={setComunicacao} erro={erros.comunicacao} />
           <EstrelasInput rotulo="Qualidade do serviço" nome="nota-qualidade" valor={qualidade} onChange={setQualidade} erro={erros.qualidade} />
@@ -98,7 +98,7 @@ export function AvaliacaoModal({ servicoId, servicoTitulo, papelAvaliado, nomeAv
             onChange={e => setComentario(e.target.value)}
             placeholder="Conte como foi trabalhar com essa pessoa"
             aria-describedby="avaliacao-contador"
-            className="w-full px-3 py-2 rounded-[10px] border border-gray-200 outline-none focus:border-[#7EBEB2] text-sm resize-none"
+            className="w-full px-3.5 py-2.5 rounded-[12px] border border-[#d5e6e2] hover:border-[#84c4b4] outline-none focus:border-[#7EBEB2] focus:ring-2 focus:ring-[#7EBEB2]/20 text-sm resize-none transition-all"
           />
           <span id="avaliacao-contador" className="self-end text-xs text-gray-500">
             {comentario.length}/{COMENTARIO_MAX}
@@ -107,7 +107,7 @@ export function AvaliacaoModal({ servicoId, servicoTitulo, papelAvaliado, nomeAv
         </div>
 
         {erroEnvio && (
-          <p role="alert" className="text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded-[10px] px-3 py-2">{erroEnvio}</p>
+          <p role="alert" className="text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded-[12px] px-3 py-2">{erroEnvio}</p>
         )}
 
         <div className="flex flex-col gap-2">
@@ -115,7 +115,7 @@ export function AvaliacaoModal({ servicoId, servicoTitulo, papelAvaliado, nomeAv
             type="button"
             onClick={enviar}
             disabled={enviando}
-            className="w-full h-[48px] rounded-[15px] border-2 border-[#2a594d] bg-[#7EBEB2] text-[#2a594d] font-bold text-base disabled:opacity-60"
+            className="w-full h-[46px] rounded-[12px] border border-[#68b0a0] bg-[#7EBEB2] hover:bg-[#6eb0a3] text-[#2a594d] font-bold text-base transition-colors disabled:opacity-60"
           >
             {enviando ? "Enviando..." : "Enviar"}
           </button>
@@ -123,7 +123,7 @@ export function AvaliacaoModal({ servicoId, servicoTitulo, papelAvaliado, nomeAv
             type="button"
             onClick={onClose}
             disabled={enviando}
-            className="w-full h-[44px] rounded-[15px] border border-gray-200 bg-white text-gray-600 font-semibold text-sm"
+            className="w-full h-[44px] rounded-[12px] border border-[#d5e6e2] bg-white hover:bg-[#f4f9f8] text-gray-600 font-semibold text-sm transition-colors"
           >
             Cancelar
           </button>

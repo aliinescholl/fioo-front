@@ -3,18 +3,16 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
+import { CategoryCombobox, Select } from "@/components/atoms/Select"
+import { ESTADOS_BR } from "@/data/estados"
 import { useCategorias } from "@/lib/useCategorias"
 import { COBRANCA_OPCOES, PRAZO_OPCOES, PRAZO_TIPO, type CobrancaTipo, type PrazoTipo, type ServicoPayload } from "@/types/servico"
 
 const DATA_ESPECIFICA = String(PRAZO_TIPO.DataEspecifica)
 
-// ─── Enums (espelhando o backend C#) ─────────────────────────────────────────
-
-
-const ESTADOS_BR = [
-  "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS",
-  "MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC",
-  "SP","SE","TO",
+const UF_OPCOES = [
+  { value: "", label: "UF" },
+  ...ESTADOS_BR.map(uf => ({ value: uf, label: uf })),
 ]
 
 // ─── Sub-componentes ──────────────────────────────────────────────────────────
@@ -26,7 +24,7 @@ function Toast({ visible, error }: { visible: boolean; error?: string }) {
       className={`
         fixed top-4 right-4 z-50
         flex items-center gap-2
-        px-4 py-3 rounded-xl shadow-lg
+        px-4 py-3 rounded-[12px] shadow-lg
         border transition-all duration-300
         ${visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-3 pointer-events-none"}
         ${isError
@@ -55,7 +53,8 @@ function Field({ label, required, children }: { label: string; required?: boolea
   )
 }
 
-const inp = "w-full h-[44px] px-4 rounded-[10px] border border-gray-200 outline-none focus:border-[#7EBEB2] text-sm transition-colors bg-white"
+const inp =
+  "w-full h-[44px] px-4 rounded-[12px] border border-[#d5e6e2] hover:border-[#84c4b4] outline-none focus:border-[#7EBEB2] focus:ring-2 focus:ring-[#7EBEB2]/20 text-sm text-gray-700 placeholder:text-gray-400 transition-all bg-white"
 
 // ─── Página ───────────────────────────────────────────────────────────────────
 
@@ -95,7 +94,7 @@ export default function NovoServicoPage() {
     const e: Record<string, string> = {}
     if (!form.titulo.trim()) e.titulo = "Título é obrigatório"
     if (form.tipoCobranca === "") e.tipoCobranca = "Selecione o tipo de cobrança"
-    if (form.valor && isNaN(parseFloat(form.valor))) e.valor = "Valor inválido"
+    if (form.valor && isNaN(parseFloat(form.valor.replace(",", ".")))) e.valor = "Valor inválido"
     if (form.tipoPrazo === "") e.tipoPrazo = "Escolha o prazo de entrega"
     if (form.tipoPrazo === DATA_ESPECIFICA && !form.dataPrazo) e.dataPrazo = "Informe a data do prazo"
     setErrors(e)
@@ -119,7 +118,7 @@ export default function NovoServicoPage() {
         estado: form.estado || null,
         tipoCobranca: Number(form.tipoCobranca) as CobrancaTipo,
         categoriaServico: form.categoriaServico.trim() || null,
-        valor: form.valor ? parseFloat(form.valor) : null,
+        valor: form.valor ? parseFloat(form.valor.replace(",", ".")) : null,
         tipoPrazo: Number(form.tipoPrazo) as PrazoTipo,
         dataPrazo: form.tipoPrazo === DATA_ESPECIFICA ? form.dataPrazo : null,
       }
@@ -137,7 +136,7 @@ export default function NovoServicoPage() {
       }
 
       showToast()
-      setTimeout(() => router.push("/consulta"), 1500)
+      setTimeout(() => router.push("/servicos/meus"), 1500)
     })
   }
 
@@ -157,35 +156,43 @@ export default function NovoServicoPage() {
         <div className="w-full max-w-[480px] px-4 flex flex-col gap-5 pt-4">
 
           {/* Cabeçalho */}
-          <div className="flex flex-col gap-1 mb-2">
+          <div className="flex flex-col gap-1 mb-1">
             <h2 className="text-lg font-bold text-gray-800">Cadastrar Serviço</h2>
             <p className="text-xs text-gray-400">Preencha as informações do serviço que você oferece</p>
           </div>
 
           {/* ── Título ── */}
           <Field label="Título" required>
-            <input className={`${inp} ${errors.titulo ? "border-red-400 bg-red-50" : ""}`}
-              value={form.titulo} maxLength={200} onChange={e => set("titulo", e.target.value)}
-              placeholder="Ex: Costura de jeans, Fornecimento de tecido..." />
+            <input
+              className={`${inp} ${errors.titulo ? "border-red-300 bg-red-50" : ""}`}
+              value={form.titulo}
+              maxLength={200}
+              onChange={e => set("titulo", e.target.value)}
+              placeholder="Ex: Costura de jeans, Fornecimento de tecido..."
+            />
             {errors.titulo && <p className="text-xs text-red-500">{errors.titulo}</p>}
           </Field>
 
           {/* ── Descrição ── */}
           <Field label="Descrição">
-            <textarea rows={3}
-              className="w-full px-4 py-3 rounded-[10px] border border-gray-200 outline-none focus:border-[#7EBEB2] text-sm resize-none transition-colors bg-white"
-              value={form.descricao} onChange={e => set("descricao", e.target.value)}
-              placeholder="Descreva seu serviço em detalhes..." />
+            <textarea
+              rows={3}
+              className="w-full px-4 py-3 rounded-[12px] border border-[#d5e6e2] hover:border-[#84c4b4] outline-none focus:border-[#7EBEB2] focus:ring-2 focus:ring-[#7EBEB2]/20 text-sm text-gray-700 placeholder:text-gray-400 resize-none transition-all bg-white"
+              value={form.descricao}
+              onChange={e => set("descricao", e.target.value)}
+              placeholder="Descreva seu serviço em detalhes..."
+            />
           </Field>
 
           {/* ── Categoria ── */}
           <Field label="Categoria do Serviço">
-            <input className={inp} value={form.categoriaServico} list="categorias-existentes" maxLength={100}
-              onChange={e => set("categoriaServico", e.target.value)}
-              placeholder="Ex: Costura, Bordado, Malharia..." />
-            <datalist id="categorias-existentes">
-              {categorias.map(c => <option key={c} value={c} />)}
-            </datalist>
+            <CategoryCombobox
+              value={form.categoriaServico}
+              onChange={v => set("categoriaServico", v)}
+              categories={categorias}
+              maxLength={100}
+              placeholder="Ex: Costura, Bordado, Malharia..."
+            />
             <p className="text-xs text-gray-400">Escolha uma categoria da lista ou digite uma nova.</p>
           </Field>
 
@@ -193,13 +200,16 @@ export default function NovoServicoPage() {
           <Field label="Tipo de Cobrança" required>
             <div className="flex gap-3">
               {COBRANCA_OPCOES.map(({ value, label }) => (
-                <button key={value} type="button"
+                <button
+                  key={value}
+                  type="button"
                   onClick={() => set("tipoCobranca", String(value))}
-                  className={`flex-1 h-[44px] rounded-[20px] border-2 text-sm font-semibold transition-all ${
+                  className={`flex-1 h-[44px] rounded-[20px] border text-sm font-semibold transition-all ${
                     form.tipoCobranca === String(value)
                       ? "border-[#7EBEB2] bg-[#e8f5f2] text-[#2a594d]"
-                      : "border-gray-200 bg-white text-gray-500"
-                  } ${errors.tipoCobranca ? "border-red-300" : ""}`}>
+                      : "border-[#d5e6e2] bg-white text-gray-500 hover:border-[#84c4b4] hover:bg-[#f7fffe]"
+                  } ${errors.tipoCobranca ? "border-red-300" : ""}`}
+                >
                   {label}
                 </button>
               ))}
@@ -212,9 +222,12 @@ export default function NovoServicoPage() {
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">R$</span>
               <input
-                className={`${inp} pl-10 ${errors.valor ? "border-red-400 bg-red-50" : ""}`}
-                value={form.valor} onChange={e => set("valor", e.target.value)}
-                placeholder="0,00" inputMode="decimal" />
+                className={`${inp} pl-10 ${errors.valor ? "border-red-300 bg-red-50" : ""}`}
+                value={form.valor}
+                onChange={e => set("valor", e.target.value)}
+                placeholder="0,00"
+                inputMode="decimal"
+              />
             </div>
             {errors.valor && <p className="text-xs text-red-500">{errors.valor}</p>}
           </Field>
@@ -222,14 +235,22 @@ export default function NovoServicoPage() {
           {/* ── Localização ── */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-semibold text-gray-700">Localização</label>
-            <div className="flex gap-2">
-              <input className={`${inp} flex-1`} value={form.cidade}
-                maxLength={100} onChange={e => set("cidade", e.target.value)} placeholder="Cidade" />
-              <select className={`${inp} w-[80px]`} value={form.estado}
-                onChange={e => set("estado", e.target.value)}>
-                <option value="">UF</option>
-                {ESTADOS_BR.map(uf => <option key={uf} value={uf}>{uf}</option>)}
-              </select>
+            <div className="flex items-center gap-2">
+              <input
+                className="flex-1 min-w-0 h-[44px] px-4 rounded-[12px] border border-[#d5e6e2] hover:border-[#84c4b4] outline-none focus:border-[#7EBEB2] focus:ring-2 focus:ring-[#7EBEB2]/20 text-sm text-gray-700 placeholder:text-gray-400 transition-all bg-white"
+                value={form.cidade}
+                maxLength={100}
+                onChange={e => set("cidade", e.target.value)}
+                placeholder="Cidade"
+              />
+              <Select
+                ariaLabel="Estado (UF)"
+                className="w-[96px] shrink-0"
+                value={form.estado}
+                onChange={v => set("estado", v)}
+                options={UF_OPCOES}
+                placeholder="UF"
+              />
             </div>
           </div>
 
@@ -237,13 +258,16 @@ export default function NovoServicoPage() {
           <Field label="Prazo de Entrega" required>
             <div className="grid grid-cols-2 gap-2">
               {PRAZO_OPCOES.map(({ value, label }) => (
-                <button key={value} type="button"
+                <button
+                  key={value}
+                  type="button"
                   onClick={() => escolherPrazo(value)}
-                  className={`h-[40px] rounded-[10px] border-2 text-sm font-medium transition-all ${
+                  className={`h-[40px] rounded-[12px] border text-sm font-medium transition-all ${
                     form.tipoPrazo === String(value)
-                      ? "border-[#7EBEB2] bg-[#e8f5f2] text-[#2a594d]"
-                      : "border-gray-200 bg-white text-gray-500"
-                  }`}>
+                      ? "border-[#7EBEB2] bg-[#e8f5f2] text-[#2a594d] font-semibold"
+                      : "border-[#d5e6e2] bg-white text-gray-600 hover:border-[#84c4b4] hover:bg-[#f7fffe]"
+                  }`}
+                >
                   {label}
                 </button>
               ))}
@@ -256,7 +280,7 @@ export default function NovoServicoPage() {
             <Field label="Data do Prazo" required>
               <input
                 type="date"
-                className={`${inp} ${errors.dataPrazo ? "border-red-400 bg-red-50" : ""}`}
+                className={`${inp} ${errors.dataPrazo ? "border-red-300 bg-red-50" : ""}`}
                 value={form.dataPrazo}
                 onChange={e => set("dataPrazo", e.target.value)}
                 min={new Date().toLocaleDateString("sv-SE") /* yyyy-MM-dd no fuso do aparelho */}
@@ -270,7 +294,7 @@ export default function NovoServicoPage() {
             type="button"
             onClick={handleSubmit}
             disabled={isPending}
-            className="w-full h-[50px] rounded-[20px] border-2 border-[#2a594d] bg-[#7EBEB2] text-[#2a594d] text-[20px] font-bold hover:bg-[#6aada0] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+            className="w-full h-[50px] rounded-[20px] border border-[#68b0a0] bg-[#7EBEB2] text-[#2a594d] text-[20px] font-bold hover:bg-[#6aada0] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2"
           >
             {isPending ? "Cadastrando..." : "Cadastrar Serviço"}
           </button>
@@ -279,7 +303,7 @@ export default function NovoServicoPage() {
           <button
             type="button"
             onClick={() => router.back()}
-            className="w-full h-[44px] rounded-[20px] border-2 border-gray-200 bg-white text-gray-500 text-sm font-semibold hover:bg-gray-50 transition-colors"
+            className="w-full h-[44px] rounded-[20px] border border-[#d5e6e2] bg-white text-gray-600 text-sm font-semibold hover:bg-[#f4f9f8] transition-colors"
           >
             Cancelar
           </button>

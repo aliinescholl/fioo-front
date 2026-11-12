@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { COOKIE_NAME } from "@/lib/cookie"
+import { SERVICO_STATUS } from "@/types/servico"
 
 const API_BASE_URL = process.env.API_BASE_URL
 
@@ -24,6 +25,30 @@ export async function POST(
     }
 
     const { id, candidaturaId } = await params
+
+    // Impede aceitar candidato em serviço já concluído ou encerrado
+    const atualRes = await fetch(`${API_BASE_URL}/api/servicos/${id}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    })
+
+    if (atualRes.ok) {
+      const servicoAtual = await atualRes.json()
+      const statusAtual = Number(servicoAtual?.status ?? servicoAtual?.Status)
+      if (statusAtual === SERVICO_STATUS.Concluido) {
+        return NextResponse.json(
+          { error: "Não é permitido aceitar candidatos em um serviço concluído." },
+          { status: 403 }
+        )
+      }
+      if (statusAtual && statusAtual !== SERVICO_STATUS.EmAndamento) {
+        return NextResponse.json(
+          { error: "Não é permitido aceitar candidatos em um serviço encerrado." },
+          { status: 403 }
+        )
+      }
+    }
 
     const response = await fetch(`${API_BASE_URL}/api/servicos/${id}/candidaturas/${candidaturaId}/aceitar`, {
       method: "POST",

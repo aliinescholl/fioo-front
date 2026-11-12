@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { COOKIE_NAME } from "@/lib/cookie"
+import { decodeJwt } from "@/lib/jwt"
+import { aplicarRegraTelefoneServico } from "@/lib/telefoneStore"
 
 const API_BASE_URL = process.env.API_BASE_URL
 
@@ -11,6 +13,34 @@ async function extractError(res: Response, fallback: string): Promise<string> {
   } catch {
     return fallback
   }
+}
+
+async function obterServicosAprovadosDoUsuario(userId: string | undefined, token: string): Promise<Set<number>> {
+  const aprovados = new Set<number>()
+  if (!userId || !API_BASE_URL) return aprovados
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/candidaturas/em-andamento/${userId}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    })
+    if (res.ok) {
+      const candidaturas = await res.json()
+      if (Array.isArray(candidaturas)) {
+        for (const c of candidaturas) {
+          const status = c?.status ?? c?.Status
+          const servico = c?.servico ?? c?.Servico
+          const servicoId = servico?.id ?? servico?.Id ?? c?.servicoId ?? c?.ServicoId
+          if (Number(status) === 1 && servicoId != null) {
+            aprovados.add(Number(servicoId))
+          }
+        }
+      }
+    }
+  } catch {
+    // falha silenciosa ao consultar candidaturas auxiliares
+  }
+  return aprovados
 }
 
 export async function POST(request: NextRequest) {
@@ -50,16 +80,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 })
     }
 
+    const jwtPayload = decodeJwt(token)
+    const userId = jwtPayload?.sub
+
     // Repassa filtros, ordenação e paginação; o usuário vem do token no backend
     const url = new URL(`${API_BASE_URL}/api/servicos`)
     url.search = request.nextUrl.search
 
-    const response = await fetch(url.toString(), {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
+    const [response, servicosAprovadosIds] = await Promise.all([
+      fetch(url.toString(), {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      }),
+      obterServicosAprovadosDoUsuario(userId, token),
+    ])
 
     if (!response.ok) {
       const error = await extractError(response, "Erro ao obter serviços")
@@ -67,6 +104,26 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json()
+    const opcoesBackend = { token, apiBaseUrl: API_BASE_URL }
+
+    if (Array.isArray(data)) {
+      const itens = await Promise.all(
+        data.map((s: Record<string, unknown>) =>
+          aplicarRegraTelefoneServico(s, userId, servicosAprovadosIds, opcoesBackend)
+        )
+      )
+      return NextResponse.json(itens)
+    }
+
+    if (data && typeof data === "object" && Array.isArray(data.itens)) {
+      const itens = await Promise.all(
+        data.itens.map((s: Record<string, unknown>) =>
+          aplicarRegraTelefoneServico(s, userId, servicosAprovadosIds, opcoesBackend)
+        )
+      )
+      return NextResponse.json({ ...data, itens })
+    }
+
     return NextResponse.json(data)
   } catch {
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })

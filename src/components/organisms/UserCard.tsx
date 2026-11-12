@@ -29,19 +29,22 @@ export function UserCard({
     <Link
       href={`/usuarios/${id}`}
       className="
-      flex
-      items-center
-      justify-between
-      gap-2
-      w-full
-      min-h-[79px]
-      border
-      rounded-[15px]
-      px-3
-      py-2
-      bg-white
-      hover:border-[#84c4b4]
-      transition-colors
+        flex
+        items-center
+        justify-between
+        gap-2
+        w-full
+        min-h-[79px]
+        border
+        border-[#e2ece9]
+        rounded-[16px]
+        px-3.5
+        py-2.5
+        bg-white
+        shadow-xs
+        hover:border-[#84c4b4]
+        hover:shadow-sm
+        transition-all
       "
     >
       <div className="flex items-center gap-3 min-w-0">
@@ -53,7 +56,7 @@ export function UserCard({
         />
 
         <div className="flex flex-col min-w-0">
-          <span className="font-semibold text-sm truncate">
+          <span className="font-semibold text-sm text-gray-800 truncate">
             {nome}
           </span>
 
