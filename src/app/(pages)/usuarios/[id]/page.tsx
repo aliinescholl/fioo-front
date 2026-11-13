@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import { NotaResumo } from "@/components/molecules/Estrelas"
+import { getMediaUrl } from "@/lib/media"
 import { PAPEL, type AvaliacoesUsuario, type PerfilPublico, type ResumoAvaliacoes } from "@/types/avaliacao"
 
 function LinhaResumo({ rotulo, resumo }: { rotulo: string; resumo: ResumoAvaliacoes }) {
@@ -22,10 +23,15 @@ export default function PerfilPublicoPage() {
   const [perfil, setPerfil] = useState<PerfilPublico | null>(null)
   const [avaliacoes, setAvaliacoes] = useState<AvaliacoesUsuario | null>(null)
   const [erro, setErro] = useState<string | null>(null)
+  const [failedFotoSrc, setFailedFotoSrc] = useState<string | null>(null)
+  const [imagemAmpliada, setImagemAmpliada] = useState<string | null>(null)
 
   useEffect(() => {
     let ativo = true
-    Promise.all([fetch(`/api/usuarios/${id}/publico`), fetch(`/api/avaliacoes/usuario/${id}`)])
+    Promise.all([
+      fetch(`/api/usuarios/${id}/publico`, { cache: "no-store" }),
+      fetch(`/api/avaliacoes/usuario/${id}`, { cache: "no-store" }),
+    ])
       .then(async ([resPerfil, resAvaliacoes]) => {
         const dadosPerfil = await resPerfil.json()
         if (!resPerfil.ok) throw new Error(dadosPerfil.error ?? "Não foi possível carregar o perfil")
@@ -68,6 +74,13 @@ export default function PerfilPublicoPage() {
       ].filter(r => r.principal || r.resumo.total > 0).sort((a, b) => Number(b.principal) - Number(a.principal))
     : []
 
+  const fotoUrl = getMediaUrl(perfil.fotoPerfilUrl)
+  const fotoErro = Boolean(fotoUrl && failedFotoSrc === fotoUrl)
+  const portfolios = (perfil.portfolios ?? [])
+    .map(url => getMediaUrl(url))
+    .filter((url): url is string => Boolean(url))
+  const nomeExibicao = perfil.nomeSocial?.trim() ? perfil.nomeSocial.trim() : perfil.nome
+
   return (
     <main className="flex flex-col items-center pb-28">
       <div className="w-full max-w-[480px] px-4 flex flex-col gap-4 pt-4">
@@ -76,22 +89,28 @@ export default function PerfilPublicoPage() {
         </button>
 
         <section className="flex items-center gap-4 p-4 border border-[#e2ece9] rounded-[16px] bg-white shadow-xs">
-          {perfil.fotoPerfilUrl ? (
+          {fotoUrl && !fotoErro ? (
             <Image
-              src={perfil.fotoPerfilUrl}
-              alt=""
+              src={fotoUrl}
+              alt={nomeExibicao}
               width={64}
               height={64}
               unoptimized
+              onError={() => setFailedFotoSrc(fotoUrl)}
               className="w-[64px] h-[64px] shrink-0 rounded-full object-cover border border-[#84c4b4]"
             />
           ) : (
             <div className="w-[64px] h-[64px] shrink-0 rounded-full bg-[#7EBEB2] flex items-center justify-center text-white text-2xl font-bold">
-              {perfil.nome.charAt(0).toUpperCase()}
+              {nomeExibicao.charAt(0).toUpperCase()}
             </div>
           )}
           <div className="flex flex-col min-w-0">
-            <h2 className="text-lg font-bold text-gray-800 truncate">{perfil.nome}</h2>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h2 className="text-lg font-bold text-gray-800 truncate">{nomeExibicao}</h2>
+              {perfil.pronome && (
+                <span className="text-xs text-gray-400 font-normal">({perfil.pronome})</span>
+              )}
+            </div>
             <span className="text-xs text-gray-400">@{perfil.nomeUsuario}</span>
             <span className="text-sm text-gray-600">{ehCostureiro ? "Costureiro(a)" : "Fornecedor"}</span>
             {(perfil.cidade || perfil.estado) && (
@@ -102,6 +121,32 @@ export default function PerfilPublicoPage() {
             )}
           </div>
         </section>
+
+        {/* Seção de Portfólio (exibida apenas quando há itens cadastrados) */}
+        {portfolios.length > 0 && (
+          <section className="flex flex-col gap-3 p-4 border border-[#e2ece9] rounded-[16px] bg-white shadow-xs">
+            <h3 className="text-base font-bold text-gray-800">Portfólio</h3>
+            <div className="grid grid-cols-3 gap-2.5">
+              {portfolios.map((src, idx) => (
+                <button
+                  key={`${src}-${idx}`}
+                  type="button"
+                  onClick={() => setImagemAmpliada(src)}
+                  className="relative aspect-square w-full rounded-[12px] overflow-hidden border border-[#e2ece9] hover:border-[#84c4b4] transition-all group bg-[#f7fffe]"
+                >
+                  <Image
+                    src={src}
+                    alt={`Trabalho do portfólio ${idx + 1}`}
+                    width={160}
+                    height={160}
+                    unoptimized
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                  />
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section className="flex flex-col p-4 border border-[#e2ece9] rounded-[16px] bg-white shadow-xs">
           <h3 className="text-base font-bold text-gray-800 mb-1">Avaliações</h3>
@@ -129,6 +174,33 @@ export default function PerfilPublicoPage() {
           ))}
         </section>
       </div>
+
+      {/* Modal para visualização ampliada de foto do portfólio */}
+      {imagemAmpliada && (
+        <div
+          className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4"
+          onClick={() => setImagemAmpliada(null)}
+        >
+          <div className="relative max-w-[90vw] max-h-[85vh] flex items-center justify-center" onClick={e => e.stopPropagation()}>
+            <Image
+              src={imagemAmpliada}
+              alt="Visualização do portfólio"
+              width={800}
+              height={800}
+              unoptimized
+              className="max-w-full max-h-[85vh] w-auto h-auto rounded-[16px] object-contain shadow-xl"
+            />
+            <button
+              type="button"
+              onClick={() => setImagemAmpliada(null)}
+              aria-label="Fechar imagem"
+              className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white text-gray-800 font-bold shadow-md flex items-center justify-center hover:bg-gray-100"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

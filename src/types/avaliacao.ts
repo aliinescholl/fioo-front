@@ -34,12 +34,15 @@ export interface AvaliacoesUsuario {
 export interface PerfilPublico {
   id: number
   nome: string
+  nomeSocial?: string | null
+  pronome?: string | null
   nomeUsuario: string
   fotoPerfilUrl: string | null
   cidade: string | null
   estado: string | null
   tipo: Papel
   anosExperiencia: number | null
+  portfolios?: string[]
 }
 
 export const ROTULO_ESTRELAS = ["Ruim", "Regular", "Bom", "Muito bom", "Excelente"]

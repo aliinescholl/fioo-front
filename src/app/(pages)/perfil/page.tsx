@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import Image from "next/image"
 import { useAuth } from "@/context/AuthContext"
 import { Select } from "@/components/atoms/Select"
 import {
@@ -40,6 +41,12 @@ const PRONOME_OPCOES = [
   { value: "ela/dela", label: "Ela/Dela" },
   { value: "eles/deles", label: "Eles/Deles" },
 ] as const
+
+interface PortfolioItem {
+  previewUrl: string
+  existingUrl?: string
+  file?: File
+}
 
 // ─── Sub-componentes ──────────────────────────────────────────────────────────
 
@@ -101,12 +108,12 @@ export default function PerfilPage() {
 
   // Foto de perfil
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
+  const [fotoErro, setFotoErro] = useState(false)
   const [fotoFile, setFotoFile] = useState<File | null>(null)
   const fotoRef = useRef<HTMLInputElement>(null)
 
-  // Portfólio
-  const [portfolioPreviews, setPortfolioPreviews] = useState<string[]>([])
-  const [portfolioFiles, setPortfolioFiles] = useState<File[]>([])
+  // Portfólio (combina imagens já salvas e novos arquivos selecionados)
+  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([])
   const portfolioRef = useRef<HTMLInputElement>(null)
 
   // Validações locais
@@ -136,12 +143,86 @@ export default function PerfilPage() {
 
   const ehFornecedor = form.servico === "fornecedor" || mapTipo(user?.role) === "fornecedor"
 
+  function aplicarDadosRecebidos(u: Record<string, unknown>) {
+    const tipoRaw = get(u, "tipo") ?? get(u, "role") ?? user?.role
+    const servico = mapTipo(tipoRaw)
+
+    const anos = get<number>(u, "anosExperiencia")
+    const tempoServico = anos != null && Number(anos) > 0 ? `${anos}` : ""
+
+    const end = get<Record<string, unknown>>(u, "endereco")
+    const cidade = get(end, "cidade") ?? get(u, "cidade") ?? ""
+    const estado = get(end, "estado") ?? get(u, "estado") ?? ""
+    const cepRaw = get<string>(end, "cep") ?? get<string>(u, "cep") ?? ""
+    const cep = cepRaw ? formatCEP(String(cepRaw)) : ""
+    const rua = get(end, "rua") ?? get(u, "rua") ?? ""
+    const numeroRaw = get<string>(end, "numero") ?? get<string>(u, "numero") ?? ""
+    const numero = numeroRaw ? formatInteiro(String(numeroRaw), 6) : ""
+    const bairro = get(end, "bairro") ?? get(u, "bairro") ?? ""
+    const complemento = get(end, "complemento") ?? get(u, "complemento") ?? ""
+
+    const cpfCnpjRaw = get<string>(u, "cpfCnpj") ?? ""
+    const cpfCnpjFmt = cpfCnpjRaw ? formatCpfCnpj(String(cpfCnpjRaw)) : ""
+    const telRaw = get<string>(u, "telefone") ?? ""
+    const telFmt = telRaw ? formatTelefone(String(telRaw)) : ""
+
+    setForm({
+      servico,
+      nomeCompleto: get(u, "nome") ?? user?.nome ?? "",
+      nomeSocial: get(u, "nomeSocial") ?? get(u, "nomeFantasia") ?? "",
+      pronome: get(u, "pronome") ?? "",
+      nomeUsuario: get(u, "nomeUsuario") ?? user?.nomeUsuario ?? "",
+      email: get(u, "email") ?? user?.email ?? "",
+      cpfCnpj: cpfCnpjFmt,
+      telefone: telFmt,
+      tempoServico,
+      maquinario: "",
+      cep,
+      rua,
+      numero,
+      bairro,
+      complemento,
+      cidade,
+      estado,
+    })
+
+    // Foto de perfil existente
+    const fotoUrl = get<string>(u, "fotoPerfilUrl") ?? get<string>(u, "foto")
+    if (fotoUrl) {
+      const resolved = getMediaUrl(fotoUrl)
+      if (resolved) {
+        setFotoPreview(resolved)
+        setFotoErro(false)
+      }
+    }
+
+    // Portfólio existente
+    const portfoliosRaw = get<unknown[]>(u, "portfolios")
+    if (Array.isArray(portfoliosRaw)) {
+      const carregados: PortfolioItem[] = []
+      for (const item of portfoliosRaw) {
+        if (typeof item === "string" && item.trim()) {
+          const url = getMediaUrl(item) ?? item
+          carregados.push({ previewUrl: url, existingUrl: url })
+        } else if (item && typeof item === "object") {
+          const rec = item as Record<string, unknown>
+          const rawUrl = get<string>(rec, "url") ?? get<string>(rec, "imagemUrl") ?? get<string>(rec, "fotoUrl")
+          if (rawUrl) {
+            const url = getMediaUrl(rawUrl) ?? rawUrl
+            carregados.push({ previewUrl: url, existingUrl: url })
+          }
+        }
+      }
+      setPortfolioItems(carregados)
+    }
+  }
+
   // ─── Carrega perfil completo do backend ─────────────────────────────────────
   useEffect(() => {
     const fetchPerfil = async () => {
       setLoadingPerfil(true)
       try {
-        const res = await fetch("/api/perfil")
+        const res = await fetch("/api/perfil", { cache: "no-store" })
         if (!res.ok) {
           if (user) {
             setForm(p => ({
@@ -155,57 +236,8 @@ export default function PerfilPage() {
           return
         }
 
-        const u = await res.json()
-
-        // Preserva internamente o tipo do usuário sem expor edição na interface
-        const tipoRaw = get(u, "tipo") ?? get(u, "role") ?? user?.role
-        const servico = mapTipo(tipoRaw)
-
-        // Anos de experiência → string legível
-        const anos = get<number>(u, "anosExperiencia")
-        const tempoServico = anos != null && anos > 0 ? `${anos}` : ""
-
-        // Endereço (pode vir flat ou dentro de um objeto "endereco")
-        const end = get(u, "endereco")
-        const cidade = get(end, "cidade") ?? get(u, "cidade") ?? ""
-        const estado = get(end, "estado") ?? get(u, "estado") ?? ""
-        const cepRaw = get<string>(end, "cep") ?? get<string>(u, "cep") ?? ""
-        const cep = cepRaw ? formatCEP(cepRaw) : ""
-        const rua = get(end, "rua") ?? get(u, "rua") ?? ""
-        const numeroRaw = get<string>(end, "numero") ?? get<string>(u, "numero") ?? ""
-        const numero = numeroRaw ? formatInteiro(String(numeroRaw), 6) : ""
-        const bairro = get(end, "bairro") ?? get(u, "bairro") ?? ""
-        const complemento = get(end, "complemento") ?? get(u, "complemento") ?? ""
-
-        // CpfCnpj e Telefone formatados
-        const cpfCnpjRaw = get<string>(u, "cpfCnpj") ?? ""
-        const cpfCnpjFmt = cpfCnpjRaw ? formatCpfCnpj(cpfCnpjRaw) : ""
-        const telRaw = get<string>(u, "telefone") ?? ""
-        const telFmt = telRaw ? formatTelefone(telRaw) : ""
-
-        setForm({
-          servico,
-          nomeCompleto: get(u, "nome") ?? user?.nome ?? "",
-          nomeSocial: get(u, "nomeFantasia") ?? get(u, "nomeSocial") ?? "",
-          pronome: get(u, "pronome") ?? "",
-          nomeUsuario: get(u, "nomeUsuario") ?? user?.nomeUsuario ?? "",
-          email: get(u, "email") ?? user?.email ?? "",
-          cpfCnpj: cpfCnpjFmt,
-          telefone: telFmt,
-          tempoServico,
-          maquinario: "",
-          cep,
-          rua,
-          numero,
-          bairro,
-          complemento,
-          cidade,
-          estado,
-        })
-
-        // Foto de perfil existente
-        const fotoUrl = get<string>(u, "fotoPerfilUrl")
-        if (fotoUrl) setFotoPreview(getMediaUrl(fotoUrl))
+        const u = (await res.json()) as Record<string, unknown>
+        aplicarDadosRecebidos(u)
       } catch {
         if (user) {
           setForm(p => ({
@@ -255,6 +287,7 @@ export default function PerfilPage() {
     }
 
     setFotoFile(file)
+    setFotoErro(false)
     const reader = new FileReader()
     reader.onload = ev => setFotoPreview(ev.target?.result as string)
     reader.readAsDataURL(file)
@@ -263,17 +296,22 @@ export default function PerfilPage() {
   function handlePortfolio(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
     if (!files.length) return
-    setPortfolioFiles(p => [...p, ...files])
+    e.target.value = ""
+
     files.forEach(file => {
       const reader = new FileReader()
-      reader.onload = ev => setPortfolioPreviews(p => [...p, ev.target?.result as string])
+      reader.onload = ev => {
+        const previewUrl = ev.target?.result as string
+        if (previewUrl) {
+          setPortfolioItems(prev => [...prev, { previewUrl, file }])
+        }
+      }
       reader.readAsDataURL(file)
     })
   }
 
   function removePortfolio(i: number) {
-    setPortfolioPreviews(p => p.filter((_, j) => j !== i))
-    setPortfolioFiles(p => p.filter((_, j) => j !== i))
+    setPortfolioItems(prev => prev.filter((_, j) => j !== i))
   }
 
   function handleCpfCnpj(e: React.ChangeEvent<HTMLInputElement>) {
@@ -368,16 +406,34 @@ export default function PerfilPage() {
       fd.append("Estado", form.estado)
 
       // Endereço com dot notation (normalizado sem caracteres de formatação no CEP)
-      fd.append("Endereco.Cep", form.cep.replace(/\D/g, ""))
+      const cepLimpo = form.cep.replace(/\D/g, "").slice(0, 8)
+      const numeroLimpo = form.numero.replace(/\D/g, "")
+      fd.append("Cep", cepLimpo)
+      fd.append("Rua", form.rua.trim())
+      fd.append("Numero", numeroLimpo)
+      fd.append("Complemento", form.complemento.trim())
+      fd.append("Bairro", form.bairro.trim())
+
+      fd.append("Endereco.Cep", cepLimpo)
       fd.append("Endereco.Rua", form.rua.trim())
-      fd.append("Endereco.Numero", form.numero.replace(/\D/g, ""))
+      fd.append("Endereco.Numero", numeroLimpo)
       fd.append("Endereco.Complemento", form.complemento.trim())
       fd.append("Endereco.Bairro", form.bairro.trim())
       fd.append("Endereco.Cidade", form.cidade.trim())
       fd.append("Endereco.Estado", form.estado)
 
       if (fotoFile) fd.append("FotoPerfil", fotoFile)
-      portfolioFiles.forEach(file => fd.append("Portfolios", file))
+
+      const portfoliosMantidos = portfolioItems
+        .filter(item => item.existingUrl)
+        .map(item => item.existingUrl as string)
+      fd.append("PortfoliosMantidos", JSON.stringify(portfoliosMantidos))
+
+      portfolioItems.forEach(item => {
+        if (item.file) {
+          fd.append("Portfolios", item.file)
+        }
+      })
 
       const res = await fetch("/api/perfil", { method: "PUT", body: fd })
 
@@ -385,6 +441,12 @@ export default function PerfilPage() {
         const data = await res.json().catch(() => ({}))
         showToast(data.error ?? "Erro ao salvar")
         return
+      }
+
+      const data = await res.json().catch(() => ({}))
+      setFotoFile(null)
+      if (data?.perfil && typeof data.perfil === "object") {
+        aplicarDadosRecebidos(data.perfil as Record<string, unknown>)
       }
 
       showToast()
@@ -408,6 +470,8 @@ export default function PerfilPage() {
     )
   }
 
+  const fotoSrc = fotoPreview ? (getMediaUrl(fotoPreview) || fotoPreview) : null
+
   // ─── Render: formulário ───────────────────────────────────────────────────────
 
   return (
@@ -424,8 +488,16 @@ export default function PerfilPage() {
               onClick={() => fotoRef.current?.click()}
               className="relative w-[100px] h-[100px] rounded-full bg-[#e8f5f2] border border-[#84c4b4] flex items-center justify-center overflow-hidden group"
             >
-              {fotoPreview ? (
-                <img src={getMediaUrl(fotoPreview) || fotoPreview} alt="Foto" className="w-full h-full object-cover" />
+              {fotoSrc && !fotoErro ? (
+                <Image
+                  src={fotoSrc}
+                  alt="Foto de perfil"
+                  width={100}
+                  height={100}
+                  unoptimized
+                  className="w-full h-full object-cover"
+                  onError={() => setFotoErro(true)}
+                />
               ) : (
                 <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#7EBEB2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
@@ -503,33 +575,55 @@ export default function PerfilPage() {
             {telefoneError && <p className="text-xs text-red-500">{telefoneError}</p>}
           </Field>
 
-          {/* ── Endereço ── */}
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">Localização</label>
-
-            <div className="flex gap-2">
-              <input
-                inputMode="numeric"
-                className={`${inp} flex-1 max-w-[140px] ${cepError ? "border-red-300 bg-red-50 focus:border-red-400" : ""}`}
-                value={form.cep}
-                onChange={handleCep}
-                onBlur={validateCepField}
-                placeholder="00000-000"
-                maxLength={9}
-              />
-              <input
-                inputMode="numeric"
-                className={`${inp} w-[88px]`}
-                value={form.numero}
-                onChange={e => set("numero", formatInteiro(e.target.value, 6))}
-                placeholder="N°"
-                maxLength={6}
-              />
-            </div>
+          {/* ── CEP (campo único e padronizado) ── */}
+          <Field label="CEP">
+            <input
+              type="text"
+              inputMode="numeric"
+              className={`${inp} ${cepError ? "border-red-300 bg-red-50 focus:border-red-400" : ""}`}
+              value={form.cep}
+              onChange={handleCep}
+              onBlur={validateCepField}
+              placeholder="00000-000"
+              maxLength={9}
+            />
             {cepError && <p className="text-xs text-red-500">{cepError}</p>}
-            <input className={inp} value={form.bairro} onChange={e => set("bairro", e.target.value)} placeholder="Bairro" />
-            <input className={inp} value={form.complemento} onChange={e => set("complemento", e.target.value)} placeholder="Complemento (opcional)" />
-          </div>
+          </Field>
+
+          {/* ── Número do endereço ── */}
+          <Field label="Número do endereço">
+            <input
+              type="text"
+              inputMode="numeric"
+              className={inp}
+              value={form.numero}
+              onChange={e => set("numero", formatInteiro(e.target.value, 6))}
+              placeholder="Ex: 123"
+              maxLength={6}
+            />
+          </Field>
+
+          {/* ── Bairro ── */}
+          <Field label="Bairro">
+            <input
+              type="text"
+              className={inp}
+              value={form.bairro}
+              onChange={e => set("bairro", e.target.value)}
+              placeholder="Informe seu bairro"
+            />
+          </Field>
+
+          {/* ── Complemento ── */}
+          <Field label="Complemento" optional>
+            <input
+              type="text"
+              className={inp}
+              value={form.complemento}
+              onChange={e => set("complemento", e.target.value)}
+              placeholder="Apartamento, bloco, sala, etc."
+            />
+          </Field>
 
           {/* ── Tempo de serviço ── */}
           <Field label="Anos de experiência na área">
@@ -557,14 +651,22 @@ export default function PerfilPage() {
               <span className="text-sm text-[#2a594d] font-medium">Anexe fotos de seus trabalhos</span>
             </button>
             <input ref={portfolioRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePortfolio} />
-            {portfolioPreviews.length > 0 && (
+            {portfolioItems.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {portfolioPreviews.map((src, i) => (
-                  <div key={i} className="relative w-[72px] h-[72px] rounded-[10px] overflow-hidden border border-[#e2ece9]">
-                    <img src={src} alt="" className="w-full h-full object-cover" />
+                {portfolioItems.map((item, i) => (
+                  <div key={`${item.previewUrl}-${i}`} className="relative w-[72px] h-[72px] rounded-[10px] overflow-hidden border border-[#e2ece9]">
+                    <Image
+                      src={item.previewUrl}
+                      alt={`Portfólio ${i + 1}`}
+                      width={72}
+                      height={72}
+                      unoptimized
+                      className="w-full h-full object-cover"
+                    />
                     <button
                       type="button"
                       onClick={() => removePortfolio(i)}
+                      aria-label={`Remover imagem ${i + 1} do portfólio`}
                       className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-[11px] leading-none flex items-center justify-center"
                     >
                       ×

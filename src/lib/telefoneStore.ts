@@ -1,6 +1,14 @@
 import fs from "fs"
 import os from "os"
 import path from "path"
+import type { ContextoEncaminhar } from "@/lib/backend"
+import { getMediaUrl } from "@/lib/media"
+import {
+  extrairFotoPerfilBackend,
+  extrairPortfoliosBackend,
+  obterPerfilPersistido,
+  salvarPerfilPersistido,
+} from "@/lib/perfilStore"
 import { extrairDigitosTelefone, formatTelefone } from "@/lib/validation"
 
 const STORE_PATH = path.join(os.tmpdir(), "fioo-telefones-cache.json")
@@ -66,26 +74,105 @@ function limparCamposTelefone(obj: Record<string, unknown> | null | undefined) {
   delete obj.TelefoneVisivel
 }
 
+async function buscarFotoPerfilPublicoBackend(
+  userId: string | number,
+  ctx?: ContextoEncaminhar
+): Promise<string | null> {
+  if (!ctx?.apiBaseUrl || !ctx?.token) return null
+  try {
+    const res = await fetch(`${ctx.apiBaseUrl}/api/usuarios/${encodeURIComponent(String(userId))}/publico`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${ctx.token}` },
+      cache: "no-store",
+    })
+    if (!res.ok) return null
+    const dados = (await res.json()) as Record<string, unknown>
+    return extrairFotoPerfilBackend(dados)
+  } catch {
+    return null
+  }
+}
+
 /**
  * Remove telefone e flags de visibilidade de objetos públicos de usuários
  * (listagens de fornecedores/costureiros e perfil público), preservando no cache
- * interno do servidor para liberar apenas ao costureiro aprovado em um serviço.
+ * interno do servidor para liberar apenas ao costureiro aprovado em um serviço,
+ * e enriquece foto de perfil, portfólio e dados complementares.
  */
-export function sanitizarUsuarioPublico<T>(dados: T): T {
+export async function sanitizarUsuarioPublico<T>(dados: T, ctx?: ContextoEncaminhar): Promise<T> {
   if (!dados || typeof dados !== "object") return dados
   if (Array.isArray(dados)) {
-    return dados.map(item => sanitizarUsuarioPublico(item)) as unknown as T
+    const lista = await Promise.all(dados.map(item => sanitizarUsuarioPublico(item, ctx)))
+    return lista as unknown as T
   }
+
   const copia = { ...(dados as Record<string, unknown>) }
   const id = lerCampo<number | string>(copia, "id")
+  const email = lerCampo<string>(copia, "email")
   const tel = lerCampo<string>(copia, "telefone")
+
   if (id != null && tel) {
     salvarTelefoneUsuario(id, tel)
   }
   limparCamposTelefone(copia)
-  if (Array.isArray(copia.itens)) {
-    copia.itens = copia.itens.map((item: unknown) => sanitizarUsuarioPublico(item))
+
+  if (id != null) {
+    const salvo = obterPerfilPersistido(id, email)
+    let fotoUrl =
+      (salvo?.fotoPerfilUrl ? getMediaUrl(salvo.fotoPerfilUrl) : null) ??
+      extrairFotoPerfilBackend(copia)
+
+    // Se a consulta da listagem não trouxe a foto, consulta o endpoint de detalhes públicos
+    // (garantindo a mesma origem de dados entre a tela Encontrar e os detalhes do usuário)
+    if (!fotoUrl && ctx?.apiBaseUrl) {
+      fotoUrl = await buscarFotoPerfilPublicoBackend(id, ctx)
+    }
+
+    if (fotoUrl) {
+      copia.foto = fotoUrl
+      copia.fotoPerfilUrl = fotoUrl
+      if (!salvo?.fotoPerfilUrl) {
+        salvarPerfilPersistido(id, { fotoPerfilUrl: fotoUrl })
+      }
+    }
+
+    const portfoliosBackend = extrairPortfoliosBackend(copia)
+    const portfoliosSalvos = (salvo?.portfolios ?? [])
+      .map(u => getMediaUrl(u))
+      .filter((u): u is string => Boolean(u))
+    const portfolios = portfoliosSalvos.length > 0 ? portfoliosSalvos : portfoliosBackend
+    if (portfolios.length > 0 || "portfolios" in copia || "fotoPerfilUrl" in copia) {
+      copia.portfolios = portfolios
+    }
+
+    const nomeSocial =
+      lerCampo<string>(copia, "nomeSocial") ??
+      lerCampo<string>(copia, "nomeFantasia") ??
+      salvo?.nomeSocial
+    if (nomeSocial) copia.nomeSocial = nomeSocial
+
+    const pronome = lerCampo<string>(copia, "pronome") ?? salvo?.pronome
+    if (pronome) copia.pronome = pronome
+
+    if (!lerCampo(copia, "cidade") && salvo?.cidade) copia.cidade = salvo.cidade
+    if (!lerCampo(copia, "estado") && salvo?.estado) copia.estado = salvo.estado
+    if (
+      (lerCampo(copia, "anosExperiencia") === null ||
+        lerCampo(copia, "anosExperiencia") === undefined ||
+        Number(lerCampo(copia, "anosExperiencia")) === 0) &&
+      salvo?.anosExperiencia &&
+      salvo.anosExperiencia > 0
+    ) {
+      copia.anosExperiencia = salvo.anosExperiencia
+    }
   }
+
+  if (Array.isArray(copia.itens)) {
+    copia.itens = await Promise.all(
+      copia.itens.map((item: unknown) => sanitizarUsuarioPublico(item, ctx))
+    )
+  }
+
   return copia as T
 }
 
@@ -178,7 +265,8 @@ export async function aplicarRegraTelefoneServico<T extends Record<string, unkno
     (usuario ? lerCampo<string>(usuario, "telefone") : undefined) ??
     lerCampo<string>(copia, "telefoneFornecedor") ??
     lerCampo<string>(copia, "telefone") ??
-    obterTelefoneUsuario(fornecedorId)
+    obterTelefoneUsuario(fornecedorId) ??
+    obterPerfilPersistido(fornecedorId)?.telefone
 
   if (fornecedorId && telefoneBruto) {
     salvarTelefoneUsuario(fornecedorId, telefoneBruto)

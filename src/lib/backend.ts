@@ -13,6 +13,11 @@ async function extractError(res: Response, fallback: string): Promise<string> {
   }
 }
 
+export interface ContextoEncaminhar {
+  token: string
+  apiBaseUrl?: string
+}
+
 /**
  * Encaminha a requisição ao backend .NET com o token do cookie e devolve
  * { error } com a mensagem do backend em caso de falha (mesmo padrão das demais rotas).
@@ -27,7 +32,7 @@ export async function encaminhar(
   }: {
     method?: string
     erroPadrao: string
-    transformar?: (dados: unknown) => unknown
+    transformar?: (dados: unknown, ctx: ContextoEncaminhar) => unknown | Promise<unknown>
   }
 ) {
   try {
@@ -54,7 +59,7 @@ export async function encaminhar(
 
     if (response.status === 204) return NextResponse.json({ success: true })
     const json = await response.json()
-    const payload = transformar ? transformar(json) : json
+    const payload = transformar ? await transformar(json, { token, apiBaseUrl: API_BASE_URL }) : json
     return NextResponse.json(payload, { status: response.status })
   } catch {
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })

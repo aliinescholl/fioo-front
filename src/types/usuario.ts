@@ -32,6 +32,7 @@ export interface UsuarioCard {
   nomeUsuario: string
   localizacao: string | null
   foto: string | null
+  fotoPerfilUrl?: string | null
   media: number | null
   totalAvaliacoes: number
 }
