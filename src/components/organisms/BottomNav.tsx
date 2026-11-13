@@ -6,7 +6,10 @@ import { useAuth } from "@/context/AuthContext"
 
 export function BottomNav() {
   const { user } = useAuth()
-  const isCostureiro = user?.role === "Costureiro"
+  const isCostureiro =
+    user?.role === "Costureiro" ||
+    user?.role === "costureiro" ||
+    user?.role === "0"
   return (
     <nav
       className="

@@ -8,7 +8,11 @@ import {
   validateCNPJ,
   formatCpfCnpj,
   formatTelefone,
+  extrairDigitosTelefone,
   validateTelefone,
+  formatCEP,
+  validateCEP,
+  formatInteiro,
 } from "@/lib/validation"
 import { getMediaUrl } from "@/lib/media"
 
@@ -108,6 +112,7 @@ export default function PerfilPage() {
   // Validações locais
   const [cpfCnpjError, setCpfCnpjError] = useState("")
   const [telefoneError, setTelefoneError] = useState("")
+  const [cepError, setCepError] = useState("")
 
   const [form, setForm] = useState({
     servico: "" as "costureiro" | "fornecedor" | "",
@@ -164,9 +169,11 @@ export default function PerfilPage() {
         const end = get(u, "endereco")
         const cidade = get(end, "cidade") ?? get(u, "cidade") ?? ""
         const estado = get(end, "estado") ?? get(u, "estado") ?? ""
-        const cep = get(end, "cep") ?? get(u, "cep") ?? ""
+        const cepRaw = get<string>(end, "cep") ?? get<string>(u, "cep") ?? ""
+        const cep = cepRaw ? formatCEP(cepRaw) : ""
         const rua = get(end, "rua") ?? get(u, "rua") ?? ""
-        const numero = get(end, "numero") ?? get(u, "numero") ?? ""
+        const numeroRaw = get<string>(end, "numero") ?? get<string>(u, "numero") ?? ""
+        const numero = numeroRaw ? formatInteiro(String(numeroRaw), 6) : ""
         const bairro = get(end, "bairro") ?? get(u, "bairro") ?? ""
         const complemento = get(end, "complemento") ?? get(u, "complemento") ?? ""
 
@@ -279,6 +286,25 @@ export default function PerfilPage() {
     setTelefoneError("")
   }
 
+  function handleCep(e: React.ChangeEvent<HTMLInputElement>) {
+    set("cep", formatCEP(e.target.value))
+    setCepError("")
+  }
+
+  function validateCepField(): boolean {
+    const d = form.cep.replace(/\D/g, "")
+    if (!d) {
+      setCepError("")
+      return true
+    }
+    if (!validateCEP(d)) {
+      setCepError("CEP inválido (informe 8 dígitos)")
+      return false
+    }
+    setCepError("")
+    return true
+  }
+
   function validateDoc(): boolean {
     const d = form.cpfCnpj.replace(/\D/g, "")
     if (!d) return true
@@ -315,19 +341,20 @@ export default function PerfilPage() {
   async function handleSave() {
     const docOk = validateDoc()
     const telOk = validateTel()
-    if (!docOk || !telOk) return
+    const cepOk = validateCepField()
+    if (!docOk || !telOk || !cepOk) return
     setSaving(true)
 
     try {
       const fd = new FormData()
 
-      fd.append("Nome", form.nomeCompleto)
-      fd.append("NomeSocial", form.nomeSocial)
+      fd.append("Nome", form.nomeCompleto.trim())
+      fd.append("NomeSocial", form.nomeSocial.trim())
       fd.append("Pronome", form.pronome)
-      fd.append("NomeUsuario", form.nomeUsuario)
-      fd.append("Email", form.email)
+      fd.append("NomeUsuario", form.nomeUsuario.trim())
+      fd.append("Email", form.email.trim())
       fd.append("CpfCnpj", form.cpfCnpj.replace(/\D/g, ""))
-      fd.append("Telefone", form.telefone.replace(/\D/g, ""))
+      fd.append("Telefone", extrairDigitosTelefone(form.telefone))
       fd.append("TelefoneVisivel", "false")
 
       // Preserva o tipo original do usuário sem permitir edição
@@ -337,16 +364,16 @@ export default function PerfilPage() {
       fd.append("AnosExperiencia", anos || "0")
 
       // Cidade e Estado direto no usuário (conforme o model)
-      fd.append("Cidade", form.cidade)
+      fd.append("Cidade", form.cidade.trim())
       fd.append("Estado", form.estado)
 
-      // Endereço com dot notation (caso o backend aceite)
-      fd.append("Endereco.Cep", form.cep)
-      fd.append("Endereco.Rua", form.rua)
-      fd.append("Endereco.Numero", form.numero)
-      fd.append("Endereco.Complemento", form.complemento)
-      fd.append("Endereco.Bairro", form.bairro)
-      fd.append("Endereco.Cidade", form.cidade)
+      // Endereço com dot notation (normalizado sem caracteres de formatação no CEP)
+      fd.append("Endereco.Cep", form.cep.replace(/\D/g, ""))
+      fd.append("Endereco.Rua", form.rua.trim())
+      fd.append("Endereco.Numero", form.numero.replace(/\D/g, ""))
+      fd.append("Endereco.Complemento", form.complemento.trim())
+      fd.append("Endereco.Bairro", form.bairro.trim())
+      fd.append("Endereco.Cidade", form.cidade.trim())
       fd.append("Endereco.Estado", form.estado)
 
       if (fotoFile) fd.append("FotoPerfil", fotoFile)
@@ -450,6 +477,7 @@ export default function PerfilPage() {
           <div className="flex flex-col gap-1">
             <label className="text-sm font-semibold text-gray-700">CPF / CNPJ</label>
             <input
+              inputMode="numeric"
               className={`${inp} ${cpfCnpjError ? "border-red-300 bg-red-50 focus:border-red-400" : ""}`}
               value={form.cpfCnpj}
               onChange={handleCpfCnpj}
@@ -480,9 +508,25 @@ export default function PerfilPage() {
             <label className="text-sm font-semibold text-gray-700">Localização</label>
 
             <div className="flex gap-2">
-              <input className={`${inp} flex-1 max-w-[140px]`} value={form.cep} onChange={e => set("cep", e.target.value)} placeholder="CEP" maxLength={9} />
-              <input className={`${inp} w-[88px]`} value={form.numero} onChange={e => set("numero", e.target.value)} placeholder="N°" />
+              <input
+                inputMode="numeric"
+                className={`${inp} flex-1 max-w-[140px] ${cepError ? "border-red-300 bg-red-50 focus:border-red-400" : ""}`}
+                value={form.cep}
+                onChange={handleCep}
+                onBlur={validateCepField}
+                placeholder="00000-000"
+                maxLength={9}
+              />
+              <input
+                inputMode="numeric"
+                className={`${inp} w-[88px]`}
+                value={form.numero}
+                onChange={e => set("numero", formatInteiro(e.target.value, 6))}
+                placeholder="N°"
+                maxLength={6}
+              />
             </div>
+            {cepError && <p className="text-xs text-red-500">{cepError}</p>}
             <input className={inp} value={form.bairro} onChange={e => set("bairro", e.target.value)} placeholder="Bairro" />
             <input className={inp} value={form.complemento} onChange={e => set("complemento", e.target.value)} placeholder="Complemento (opcional)" />
           </div>
@@ -492,9 +536,10 @@ export default function PerfilPage() {
             <input
               className={inp}
               value={form.tempoServico}
-              onChange={e => set("tempoServico", e.target.value)}
+              onChange={e => set("tempoServico", formatInteiro(e.target.value, 2))}
               placeholder="Ex: 5"
               inputMode="numeric"
+              maxLength={2}
             />
           </Field>
 

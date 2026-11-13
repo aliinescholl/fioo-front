@@ -53,12 +53,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const cnpjLimpo = cnpj ? String(cnpj).replace(/\D/g, "") : undefined
     const telefoneLimpo = telefone ? extrairDigitosTelefone(String(telefone)) : undefined
 
-    // ── Monta payload conforme tipo de conta ──────────────────────────────────
+    // ── Monta payload normalizado (sem caracteres de máscara) ─────────────────
     const payload = ehCostureiro
       ? { nome, email, senha, ehCostureiro: true, ...(telefoneLimpo ? { telefone: telefoneLimpo } : {}) }
-      : { cnpj, email, senha, ehCostureiro: false, telefone: telefoneLimpo }
+      : { cnpj: cnpjLimpo, email, senha, ehCostureiro: false, telefone: telefoneLimpo }
 
     // 1️⃣ Cadastrar usuário
     const registerRes = await fetch(`${API_BASE_URL}/api/usuarios`, {
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
     const { token } = await loginRes.json()
     const jwtPayload = decodeJwt(token)
 
-    // Persiste o telefone no cache local e garante atualização no perfil do backend
+    // Persiste o telefone normalizado no cache e garante sincronização no perfil do backend
     if (telefoneLimpo) {
       if (jwtPayload?.sub) {
         salvarTelefoneUsuario(jwtPayload.sub, telefoneLimpo)
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest) {
             fd.append("Nome", String(meData?.nome ?? meData?.Nome ?? jwtPayload?.nome ?? ""))
             fd.append("NomeUsuario", String(meData?.nomeUsuario ?? meData?.NomeUsuario ?? jwtPayload?.nome_usuario ?? ""))
             fd.append("Email", String(meData?.email ?? meData?.Email ?? email))
-            fd.append("CpfCnpj", String(meData?.cpfCnpj ?? meData?.CpfCnpj ?? (cnpj ? String(cnpj).replace(/\D/g, "") : "")))
+            fd.append("CpfCnpj", String(meData?.cpfCnpj ?? meData?.CpfCnpj ?? cnpjLimpo ?? ""))
             fd.append("Telefone", telefoneLimpo)
             fd.append("TelefoneVisivel", "false")
             fd.append("Tipo", ehCostureiro ? "0" : "1")

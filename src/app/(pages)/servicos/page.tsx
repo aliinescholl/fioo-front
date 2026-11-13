@@ -10,7 +10,7 @@ import { FilterTag } from "@/components/molecules/FilterTag"
 import { AvaliacaoModal } from "@/components/organisms/AvaliacaoModal"
 import { useAvaliacoesFeitas } from "@/lib/useAvaliacoesFeitas"
 import { useCategorias } from "@/lib/useCategorias"
-import { formatTelefone, formatWhatsAppUrl } from "@/lib/validation"
+import { formatMoeda, formatTelefone, formatWhatsAppUrl } from "@/lib/validation"
 import { PAPEL } from "@/types/avaliacao"
 import { OpcoesFiltro, PainelFiltros } from "@/components/organisms/PainelFiltros"
 import { ESTADOS_BR } from "@/data/estados"
@@ -402,20 +402,22 @@ function ServicosFeed() {
               <div className="flex items-center gap-2">
                 <input
                   aria-label="Valor mínimo"
-                  placeholder="Mínimo"
-                  inputMode="decimal"
+                  placeholder="Mínimo (0,00)"
+                  inputMode="numeric"
+                  maxLength={14}
                   className={`${inp} flex-1 min-w-0 ${valorInvalido ? "border-red-300 bg-red-50" : ""}`}
                   value={rascunho.valorMin}
-                  onChange={e => setRascunho(r => ({ ...r, valorMin: e.target.value }))}
+                  onChange={e => setRascunho(r => ({ ...r, valorMin: formatMoeda(e.target.value) }))}
                 />
                 <span className="text-sm text-gray-400">até</span>
                 <input
                   aria-label="Valor máximo"
-                  placeholder="Máximo"
-                  inputMode="decimal"
+                  placeholder="Máximo (0,00)"
+                  inputMode="numeric"
+                  maxLength={14}
                   className={`${inp} flex-1 min-w-0 ${valorInvalido ? "border-red-300 bg-red-50" : ""}`}
                   value={rascunho.valorMax}
-                  onChange={e => setRascunho(r => ({ ...r, valorMax: e.target.value }))}
+                  onChange={e => setRascunho(r => ({ ...r, valorMax: formatMoeda(e.target.value) }))}
                 />
               </div>
               {valorInvalido && <p className="text-xs text-red-500">O valor mínimo não pode ser maior que o máximo.</p>}

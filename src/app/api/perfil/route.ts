@@ -96,6 +96,27 @@ export async function PUT(request: NextRequest) {
     const telefoneLimpo = telefoneRaw ? extrairDigitosTelefone(telefoneRaw) : ""
     formData.set("Telefone", telefoneLimpo)
 
+    // Normaliza campos formatados (CPF/CNPJ, CEP, Número, Anos de experiência) para armazenar sem máscara
+    const cpfCnpjRaw = formData.get("CpfCnpj")
+    if (cpfCnpjRaw !== null) {
+      formData.set("CpfCnpj", String(cpfCnpjRaw).replace(/\D/g, ""))
+    }
+
+    const cepRaw = formData.get("Endereco.Cep")
+    if (cepRaw !== null) {
+      formData.set("Endereco.Cep", String(cepRaw).replace(/\D/g, "").slice(0, 8))
+    }
+
+    const numeroRaw = formData.get("Endereco.Numero")
+    if (numeroRaw !== null) {
+      formData.set("Endereco.Numero", String(numeroRaw).replace(/\D/g, ""))
+    }
+
+    const anosRaw = formData.get("AnosExperiencia")
+    if (anosRaw !== null) {
+      formData.set("AnosExperiencia", String(anosRaw).replace(/\D/g, "") || "0")
+    }
+
     // O telefone nunca fica visível publicamente; só é liberado após aceite de candidatura
     formData.set("TelefoneVisivel", "false")
 

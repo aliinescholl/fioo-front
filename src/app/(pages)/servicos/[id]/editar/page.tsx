@@ -1,9 +1,18 @@
 "use client"
 
-import { useState, useEffect, useTransition } from "react"
+import { useState, useEffect, useRef, useTransition } from "react"
 import { useRouter, useParams } from "next/navigation"
+import { useAuth } from "@/context/AuthContext"
 import { CategoryCombobox, Select } from "@/components/atoms/Select"
 import { ESTADOS_BR } from "@/data/estados"
+import {
+  formatDataBr,
+  formatMoeda,
+  formatNumeroParaMoeda,
+  normalizarDataParaIso,
+  parseMoedaParaNumero,
+  validateDataBr,
+} from "@/lib/validation"
 import {
   COBRANCA_OPCOES,
   PRAZO_OPCOES,
@@ -36,12 +45,6 @@ function get<T = string>(obj: Record<string, unknown> | null | undefined, camel:
 function enumStr(val: unknown): string {
   if (val === null || val === undefined) return ""
   return String(val)
-}
-
-function valorStr(val: unknown): string {
-  if (val === null || val === undefined || val === "") return ""
-  const n = Number(val)
-  return isNaN(n) ? "" : String(n)
 }
 
 // ─── Sub-componentes ──────────────────────────────────────────────────────────
@@ -88,14 +91,17 @@ const inp =
 // ─── Página ───────────────────────────────────────────────────────────────────
 
 export default function EditarServicoPage() {
+  const { user } = useAuth()
   const router = useRouter()
   const params = useParams()
   const servicoId = params.id as string
 
   const [isPending, startTransition] = useTransition()
+  const [redirecionando, setRedirecionando] = useState(false)
   const [loadingInitial, setLoadingInitial] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [toast, setToast] = useState<{ visible: boolean; error?: string; message?: string }>({ visible: false })
+  const datePickerRef = useRef<HTMLInputElement>(null)
 
   const [form, setForm] = useState({
     titulo: "",
@@ -116,6 +122,7 @@ export default function EditarServicoPage() {
 
   // Serviços concluídos ou cancelados ficam bloqueados para edição (somente leitura)
   const somenteLeitura = status !== null && status !== SERVICO_STATUS.EmAndamento
+  const bloqueado = somenteLeitura || isPending || redirecionando
 
   // ─── Carrega dados do serviço pelo ID diretamente ─────────────────────────────
   useEffect(() => {
@@ -133,6 +140,7 @@ export default function EditarServicoPage() {
         }
 
         const s = await res.json()
+        const rawDataPrazo = get<string>(s, "dataPrazo") ?? ""
 
         setForm({
           titulo:           get(s, "titulo")           ?? "",
@@ -141,9 +149,9 @@ export default function EditarServicoPage() {
           estado:           get(s, "estado")           ?? "",
           categoriaServico: get(s, "categoriaServico") ?? "",
           tipoCobranca:     enumStr(get(s, "tipoCobranca")),
-          valor:            valorStr(get(s, "valor")),
+          valor:            formatNumeroParaMoeda(get(s, "valor")),
           tipoPrazo:        enumStr(get(s, "tipoPrazo")),
-          dataPrazo:        get(s, "dataPrazo")        ?? "",
+          dataPrazo:        rawDataPrazo ? formatDataBr(rawDataPrazo) : "",
         })
         setStatus(get<ServicoStatus>(s, "status") ?? null)
         setTemCostureiro(get(s, "costureiroVinculado") != null)
@@ -175,9 +183,12 @@ export default function EditarServicoPage() {
     const e: Record<string, string> = {}
     if (!form.titulo.trim()) e.titulo = "Título é obrigatório"
     if (form.tipoCobranca === "") e.tipoCobranca = "Selecione o tipo de cobrança"
-    if (form.valor && isNaN(parseFloat(form.valor.replace(",", ".")))) e.valor = "Valor inválido"
+    if (form.valor && parseMoedaParaNumero(form.valor) === null) e.valor = "Valor inválido"
     if (form.tipoPrazo === "") e.tipoPrazo = "Escolha o prazo de entrega"
-    if (form.tipoPrazo === DATA_ESPECIFICA && !form.dataPrazo) e.dataPrazo = "Informe a data do prazo"
+    if (form.tipoPrazo === DATA_ESPECIFICA) {
+      const erroData = validateDataBr(form.dataPrazo, { permitirPassado: true })
+      if (erroData) e.dataPrazo = erroData
+    }
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -193,13 +204,10 @@ export default function EditarServicoPage() {
       showToast(undefined, "Serviços concluídos não podem ser editados.")
       return
     }
+    if (bloqueado) return
     if (!validate()) return
 
     startTransition(async () => {
-      const valorNum = form.valor
-        ? parseFloat(form.valor.replace(",", "."))
-        : null
-
       const payload: ServicoPayload = {
         titulo: form.titulo.trim(),
         descricao: form.descricao.trim() || null,
@@ -207,25 +215,31 @@ export default function EditarServicoPage() {
         estado: form.estado || null,
         tipoCobranca: Number(form.tipoCobranca) as CobrancaTipo,
         categoriaServico: form.categoriaServico.trim() || null,
-        valor: valorNum,
+        valor: parseMoedaParaNumero(form.valor),
         tipoPrazo: Number(form.tipoPrazo) as PrazoTipo,
-        dataPrazo: form.tipoPrazo === DATA_ESPECIFICA ? form.dataPrazo : null,
+        dataPrazo: form.tipoPrazo === DATA_ESPECIFICA ? normalizarDataParaIso(form.dataPrazo) : null,
       }
 
-      const res = await fetch(`/api/servicos/${servicoId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
+      try {
+        const res = await fetch(`/api/servicos/${servicoId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        showToast(undefined, data.error ?? "Erro ao atualizar serviço")
-        return
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          showToast(undefined, data.error ?? "Erro ao atualizar serviço")
+          return
+        }
+
+        setRedirecionando(true)
+        showToast("Serviço atualizado com sucesso!")
+        const destinoServicos = user?.role === "Costureiro" ? "/servicos" : "/servicos/meus"
+        setTimeout(() => router.push(destinoServicos), 800)
+      } catch {
+        showToast(undefined, "Erro de conexão ao atualizar serviço")
       }
-
-      showToast("Serviço atualizado com sucesso!")
-      setTimeout(() => router.push("/servicos/meus"), 1500)
     })
   }
 
@@ -278,7 +292,7 @@ export default function EditarServicoPage() {
       <Toast visible={toast.visible} error={toast.error} message={toast.message} />
 
       <main className="flex flex-col items-center pb-28">
-        <div className="w-full max-w-[480px] px-4 flex flex-col gap-5 pt-4">
+        <form onSubmit={handleSubmit} noValidate className="w-full max-w-[480px] px-4 flex flex-col gap-5 pt-4">
 
           {/* Cabeçalho */}
           <div className="flex items-center gap-3 mb-1">
@@ -325,7 +339,7 @@ export default function EditarServicoPage() {
               value={form.titulo}
               maxLength={200}
               readOnly={somenteLeitura}
-              disabled={somenteLeitura}
+              disabled={bloqueado}
               onChange={e => set("titulo", e.target.value)}
               placeholder="Ex: Costura de jeans, Fornecimento de tecido..."
             />
@@ -338,7 +352,7 @@ export default function EditarServicoPage() {
               id="editar-descricao"
               rows={3}
               readOnly={somenteLeitura}
-              disabled={somenteLeitura}
+              disabled={bloqueado}
               className="w-full px-4 py-3 rounded-[12px] border border-[#d5e6e2] hover:border-[#84c4b4] outline-none focus:border-[#7EBEB2] focus:ring-2 focus:ring-[#7EBEB2]/20 text-sm text-gray-700 placeholder:text-gray-400 resize-none transition-all bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:border-gray-200 disabled:cursor-not-allowed"
               value={form.descricao}
               onChange={e => set("descricao", e.target.value)}
@@ -353,7 +367,7 @@ export default function EditarServicoPage() {
               value={form.categoriaServico}
               onChange={v => set("categoriaServico", v)}
               categories={categorias}
-              disabled={somenteLeitura}
+              disabled={bloqueado}
               maxLength={100}
               placeholder="Ex: Costura, Bordado, Malharia..."
             />
@@ -369,7 +383,7 @@ export default function EditarServicoPage() {
                 <button
                   key={value}
                   type="button"
-                  disabled={somenteLeitura}
+                  disabled={bloqueado}
                   onClick={() => set("tipoCobranca", String(value))}
                   className={`flex-1 h-[44px] rounded-[20px] border text-sm font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                     form.tipoCobranca === String(value)
@@ -393,10 +407,11 @@ export default function EditarServicoPage() {
                 className={`${inp} pl-10 ${errors.valor ? "border-red-300 bg-red-50" : ""}`}
                 value={form.valor}
                 readOnly={somenteLeitura}
-                disabled={somenteLeitura}
-                onChange={e => set("valor", e.target.value)}
+                disabled={bloqueado}
+                onChange={e => set("valor", formatMoeda(e.target.value))}
                 placeholder="0,00"
-                inputMode="decimal"
+                inputMode="numeric"
+                maxLength={14}
               />
             </div>
             {errors.valor && <p className="text-xs text-red-500">{errors.valor}</p>}
@@ -412,7 +427,7 @@ export default function EditarServicoPage() {
                 value={form.cidade}
                 maxLength={100}
                 readOnly={somenteLeitura}
-                disabled={somenteLeitura}
+                disabled={bloqueado}
                 onChange={e => set("cidade", e.target.value)}
                 placeholder="Cidade"
               />
@@ -424,7 +439,7 @@ export default function EditarServicoPage() {
                 onChange={v => set("estado", v)}
                 options={UF_OPCOES}
                 placeholder="UF"
-                disabled={somenteLeitura}
+                disabled={bloqueado}
               />
             </div>
           </div>
@@ -436,7 +451,7 @@ export default function EditarServicoPage() {
                 <button
                   key={value}
                   type="button"
-                  disabled={somenteLeitura}
+                  disabled={bloqueado}
                   onClick={() => escolherPrazo(value)}
                   className={`h-[40px] rounded-[12px] border text-sm font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                     form.tipoPrazo === String(value)
@@ -454,15 +469,48 @@ export default function EditarServicoPage() {
           {/* ── Data Prazo (condicional) ── */}
           {form.tipoPrazo === DATA_ESPECIFICA && (
             <Field label="Data do Prazo" required={!somenteLeitura}>
-              <input
-                id="editar-dataPrazo"
-                type="date"
-                readOnly={somenteLeitura}
-                disabled={somenteLeitura}
-                className={`${inp} ${errors.dataPrazo ? "border-red-300 bg-red-50" : ""}`}
-                value={form.dataPrazo}
-                onChange={e => set("dataPrazo", e.target.value)}
-              />
+              <div className="relative">
+                <input
+                  id="editar-dataPrazo"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={10}
+                  readOnly={somenteLeitura}
+                  disabled={bloqueado}
+                  placeholder="DD/MM/AAAA"
+                  className={`${inp} pr-11 ${errors.dataPrazo ? "border-red-300 bg-red-50" : ""}`}
+                  value={form.dataPrazo}
+                  onChange={e => set("dataPrazo", formatDataBr(e.target.value))}
+                />
+                {!somenteLeitura && (
+                  <>
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      disabled={bloqueado}
+                      onClick={() => datePickerRef.current?.showPicker?.()}
+                      aria-label="Selecionar data no calendário"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-[#2a594d] transition-colors"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                      </svg>
+                    </button>
+                    <input
+                      ref={datePickerRef}
+                      type="date"
+                      tabIndex={-1}
+                      aria-hidden="true"
+                      value={normalizarDataParaIso(form.dataPrazo)}
+                      onChange={e => set("dataPrazo", formatDataBr(e.target.value))}
+                      className="sr-only pointer-events-none"
+                    />
+                  </>
+                )}
+              </div>
               {errors.dataPrazo && <p className="text-xs text-red-500">{errors.dataPrazo}</p>}
             </Field>
           )}
@@ -480,25 +528,25 @@ export default function EditarServicoPage() {
           {/* ── Salvar (somente se ainda estiver em andamento) ── */}
           {!somenteLeitura && (
             <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isPending}
+              type="submit"
+              disabled={bloqueado}
               className="w-full h-[50px] rounded-[20px] border border-[#68b0a0] bg-[#7EBEB2] text-[#2a594d] text-[20px] font-bold hover:bg-[#6aada0] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2"
             >
-              {isPending ? "Salvando..." : "Salvar Alterações"}
+              {bloqueado ? "Salvando..." : "Salvar Alterações"}
             </button>
           )}
 
           {/* ── Cancelar / Voltar ── */}
           <button
             type="button"
+            disabled={isPending || redirecionando}
             onClick={() => router.back()}
-            className="w-full h-[44px] rounded-[20px] border border-[#d5e6e2] bg-white text-gray-600 text-sm font-semibold hover:bg-[#f4f9f8] transition-colors"
+            className="w-full h-[44px] rounded-[20px] border border-[#d5e6e2] bg-white text-gray-600 text-sm font-semibold hover:bg-[#f4f9f8] transition-colors disabled:opacity-60"
           >
             {somenteLeitura ? "Voltar" : "Cancelar"}
           </button>
 
-        </div>
+        </form>
       </main>
     </>
   )

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { COOKIE_NAME } from "@/lib/cookie"
 import { decodeJwt } from "@/lib/jwt"
 import { aplicarRegraTelefoneServico } from "@/lib/telefoneStore"
+import { normalizarDataParaIso, parseMoedaParaNumero } from "@/lib/validation"
 import { SERVICO_STATUS } from "@/types/servico"
 
 const API_BASE_URL = process.env.API_BASE_URL
@@ -125,10 +126,16 @@ export async function PUT(
 
     const body = await request.json()
 
-    // Impede qualquer tentativa de alterar status indiretamente via PUT
+    // Impede qualquer tentativa de alterar status indiretamente via PUT e normaliza campos
     if (body && typeof body === "object") {
       delete body.status
       delete body.Status
+      if (typeof body.valor === "string") {
+        body.valor = parseMoedaParaNumero(body.valor)
+      }
+      if (typeof body.dataPrazo === "string" && body.dataPrazo.trim()) {
+        body.dataPrazo = normalizarDataParaIso(body.dataPrazo) || body.dataPrazo
+      }
     }
 
     const response = await fetch(`${API_BASE_URL}/api/servicos/${id}`, {

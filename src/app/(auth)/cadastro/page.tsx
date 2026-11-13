@@ -9,8 +9,9 @@ import { Logo } from "@/components/atoms/Logo"
 import { useAuth } from "@/context/AuthContext"
 import {
   validateCNPJ,
-  formatCpfCnpj,
+  formatCnpj,
   formatTelefone,
+  extrairDigitosTelefone,
   validateTelefone,
 } from "@/lib/validation"
 
@@ -115,7 +116,7 @@ function CadastroForm() {
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target
     if (name === "cnpj") {
-      setForm(prev => ({ ...prev, cnpj: formatCpfCnpj(value) }))
+      setForm(prev => ({ ...prev, cnpj: formatCnpj(value) }))
     } else if (name === "telefone") {
       setForm(prev => ({ ...prev, telefone: formatTelefone(value) }))
     } else {
@@ -188,8 +189,8 @@ function CadastroForm() {
         form.email.trim(),
         form.senha,
         ehCostureiro,
-        ehCostureiro ? undefined : form.cnpj,
-        ehCostureiro ? undefined : form.telefone,
+        ehCostureiro ? undefined : cnpjDigitos,
+        ehCostureiro ? undefined : extrairDigitosTelefone(form.telefone),
       )
       if (result.error) setError(result.error)
     })

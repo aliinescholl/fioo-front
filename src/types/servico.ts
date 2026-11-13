@@ -1,3 +1,5 @@
+import { formatNumeroParaMoeda } from "@/lib/validation"
+
 // Tipos e rótulos de Serviço, espelhando os enums do backend (JSON numérico).
 
 export const COBRANCA_TIPO = { PorPeca: 0, PorOperacao: 1 } as const
@@ -82,7 +84,7 @@ export function getCobrancaLabel(tipo: CobrancaTipo) {
 export function getPrazoLabel(tipo: PrazoTipo | null | undefined, data: string | null | undefined) {
   if (tipo === PRAZO_TIPO.DataEspecifica) {
     if (!data) return "Data específica"
-    const [ano, mes, dia] = data.split("-")
+    const [ano, mes, dia] = data.split("T")[0].split("-")
     return ano && mes && dia ? `${dia}/${mes}/${ano}` : data
   }
   return PRAZO_OPCOES.find(o => o.value === tipo)?.label ?? "A combinar"
@@ -143,15 +145,17 @@ export function normalizarValor(valor: string): string {
   return limpo !== "" && !isNaN(Number(limpo)) ? String(Number(limpo)) : ""
 }
 
-/** Lê os filtros da URL, descartando valores inválidos. */
+/** Lê os filtros da URL, descartando valores inválidos e aplicando máscara de apresentação nos valores. */
 export function lerFiltrosServicos(params: URLSearchParams): FiltrosServicos {
   const ordenacao = params.get("ordenacao")
+  const vMinNorm = normalizarValor(params.get("valorMin") ?? "")
+  const vMaxNorm = normalizarValor(params.get("valorMax") ?? "")
   return {
     busca: params.get("busca") ?? "",
     uf: params.get("uf") ?? "",
     cidade: params.get("cidade") ?? "",
-    valorMin: normalizarValor(params.get("valorMin") ?? ""),
-    valorMax: normalizarValor(params.get("valorMax") ?? ""),
+    valorMin: vMinNorm ? formatNumeroParaMoeda(vMinNorm) : "",
+    valorMax: vMaxNorm ? formatNumeroParaMoeda(vMaxNorm) : "",
     cobranca: lerOpcao(params.get("cobranca"), Object.values(COBRANCA_TIPO)),
     prazo: lerOpcao(params.get("prazo"), Object.values(PRAZO_TIPO)),
     categoria: params.get("categoria") ?? "",
